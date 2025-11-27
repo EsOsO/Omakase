@@ -1,0 +1,86 @@
+/* Custom styles for Omakase documentation */
+
+:root {
+  --omakase-primary: #326ce5;
+  --omakase-accent: #2ecc71;
+}
+
+/* Grid cards styling */
+.grid.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.grid.cards > * {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.2rem;
+  padding: 1rem;
+  transition: box-shadow 0.2s;
+}
+
+.grid.cards > *:hover {
+  box-shadow: 0 0.2rem 0.5rem rgba(0, 0, 0, 0.1);
+}
+
+/* Table improvements */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+table th {
+  background-color: var(--md-default-fg-color--lightest);
+  font-weight: 600;
+}
+
+/* Code block improvements */
+.highlight {
+  margin: 1rem 0;
+}
+
+/* Admonition custom colors */
+.md-typeset .admonition.tip {
+  border-left-color: var(--omakase-accent);
+}
+
+/* Homepage hero section */
+.md-typeset h1:first-child {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+
+/* Command examples */
+code {
+  background-color: var(--md-code-bg-color);
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.2rem;
+  font-size: 0.9em;
+}
+
+/* Deployment table styling */
+.deployment-table table td:first-child {
+  font-weight: 600;
+}
+
+/* Status badges */
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.2rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badge-recommended {
+  background-color: var(--omakase-accent);
+  color: white;
+}
+
+.badge-experimental {
+  background-color: #f39c12;
+  color: white;
+}

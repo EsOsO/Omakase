@@ -1,0 +1,163 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "enabledManagers": [
+    "docker-compose",
+    "github-actions"
+  ],
+  "extends": [
+    "config:best-practices",
+    "docker:enableMajor"
+  ],
+  "ignoreUnstable": true,
+  "minimumReleaseAge": "3 days",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/compose/.+?/compose\\.yaml$/"
+      ],
+      "matchStrings": [
+        "image:\\s*ghcr\\.io/immich-app/postgres:(?<currentValue>14[\\w.-]+)"
+      ],
+      "depNameTemplate": "ghcr.io/immich-app/postgres",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^14"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchFileNames": [
+        "compose/**/compose.yaml"
+      ],
+      "groupName": "Docker digest updates",
+      "groupSlug": "docker-digests",
+      "commitMessageTopic": "{{depName}}",
+      "matchUpdateTypes": [
+        "digest"
+      ],
+      "automerge": true,
+      "commitMessageAction": "📌",
+      "commitMessagePrefix": "digest: "
+    },
+    {
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchFileNames": [
+        "compose/**/compose.yaml"
+      ],
+      "groupName": "{{parentDir}} service images",
+      "groupSlug": "{{parentDir}}",
+      "commitMessageTopic": "{{depName}}",
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "automerge": true,
+      "commitMessageAction": "🩹",
+      "commitMessagePrefix": "patch({{parentDir}}): "
+    },
+    {
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchFileNames": [
+        "compose/**/compose.yaml"
+      ],
+      "groupName": "{{parentDir}} service images",
+      "groupSlug": "{{parentDir}}",
+      "commitMessageTopic": "{{depName}}",
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "automerge": false,
+      "commitMessageAction": "✨",
+      "commitMessagePrefix": "minor({{parentDir}}): "
+    },
+    {
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchFileNames": [
+        "compose/**/compose.yaml"
+      ],
+      "groupName": "{{parentDir}} service images",
+      "groupSlug": "{{parentDir}}",
+      "commitMessageTopic": "{{depName}}",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false,
+      "commitMessageAction": "🚨",
+      "commitMessagePrefix": "major({{parentDir}}): "
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "Docker digest updates",
+      "groupSlug": "docker-digests",
+      "commitMessageTopic": "{{depName}}",
+      "matchUpdateTypes": [
+        "digest"
+      ],
+      "automerge": true,
+      "commitMessageAction": "📌",
+      "commitMessagePrefix": "digest: "
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "GitHub Actions dependencies",
+      "groupSlug": "{{depName}}",
+      "commitMessageTopic": "{{depName}}",
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "automerge": true,
+      "commitMessageAction": "🩹",
+      "commitMessagePrefix": "patch(gha): "
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "GitHub Actions dependencies",
+      "groupSlug": "{{depName}}",
+      "commitMessageTopic": "{{depName}}",
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "automerge": false,
+      "commitMessageAction": "✨",
+      "commitMessagePrefix": "minor(gha): "
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "GitHub Actions dependencies",
+      "groupSlug": "{{depName}}",
+      "commitMessageTopic": "{{depName}}",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false,
+      "commitMessageAction": "🚨",
+      "commitMessagePrefix": "major(gha): "
+    }
+  ],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "timezone": "Europe/Rome",
+  "vulnerabilityAlerts": {
+    "labels": [
+      "security"
+    ],
+    "schedule": "at any time"
+  }
+}

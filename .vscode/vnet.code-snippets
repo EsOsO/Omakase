@@ -1,0 +1,118 @@
+{
+	// Place your docker workspace snippets here. Each snippet is defined under a snippet name and has a scope, prefix, body and 
+	// description. Add comma separated ids of the languages where the snippet is applicable in the scope field. If scope 
+	// is left empty or omitted, the snippet gets applied to all languages. The prefix is what is 
+	// used to trigger the snippet and the body will be expanded and inserted. Possible variables are: 
+	// $1, $2 for tab stops, $0 for the final cursor position, and ${1:label}, ${2:another} for placeholders. 
+	// Placeholders with the same ids are connected.
+	// Example:
+	// "Print to console": {
+	// 	"scope": "javascript,typescript",
+	// 	"prefix": "log",
+	// 	"body": [
+	// 		"console.log('$1');",
+	// 		"$2"
+	// 	],
+	// 	"description": "Log output to console"
+	// }
+	"Docker compose network": {
+		"prefix": "docker-vnet",
+		"body": [
+			"networks:",
+			"  vnet-$1:",
+			"    driver: bridge",
+			"    ipam:",
+			"      config:",
+			"        - subnet: 192.168.$2/${3:29}",
+			"    name: vnet-$1"
+		],
+		"description": "Create a new virtual network"
+	},
+
+	"Docker compose service": {
+		"prefix": "docker-service",
+		"body": [
+			"$1:",
+			"  container_name: $1",
+			"  environment:",
+			"  extends:",
+			"    file: ../common/compose.yaml",
+			"    service: base",
+			"  image: $2",
+			"  labels:",
+			"    homepage.description: |",
+			"      $6",
+		  	"    homepage.group: $3",
+		  	"    homepage.href: https://$1.\\${DOMAINNAME:?err}",
+		  	"    homepage.icon: sh-$1",
+		  	"    homepage.name: $4",
+		  	"    homepage.siteMonitor: http://$1",
+		  	"    traefik.enable: true",
+		  	"    traefik.http.routers.$1.middlewares: chain-no-auth@file",
+		  	"    traefik.http.routers.$1.rule: Host(`$1.\\${DOMAINNAME:?err}`)",
+			"  networks:",
+			"    - vnet-$1",
+			"    - ingress",
+			"  volumes:",
+			"    - \\${DATA_DIR:?err}/$1:$5"
+		],
+		"description": "Create a new PostgreSQL service"
+	},
+
+	"Docker compose PostgreSQL service": {
+		"prefix": "docker-db-service",
+		"body": [
+			"$1-db:",
+			"  container_name: $1-db",
+			"  environment:",
+			"    POSTGRES_DB: $1_db",
+			"    POSTGRES_PASSWORD: \\${${1/(.*)/${1:/upcase}/}_DB_PASS:?err}",
+			"    POSTGRES_USER: \\${${1/(.*)/${1:/upcase}/}_DB_USER:-postgres}",
+			"  extends:",
+			"    file: ../common/compose.yaml",
+			"    service: postgres",
+			"  networks:",
+			"    - vnet-$1",
+			"  volumes:",
+			"    - \\${DATA_DIR:?err}/$1/db:/var/lib/postgresql/data"
+		],
+		"description": "Create a new PostgreSQL service"
+	},
+
+	"Docker compose MariaDB service": {
+		"prefix": "docker-db-mariadb-service",
+		"body": [
+			"$1-db:",
+			"  container_name: $1-db",
+			"  environment:",
+			"    MYSQL_DATABASE: $1_db",
+			"    MYSQL_PASSWORD: \\${${1/(.*)/${1:/upcase}/}_DB_PASS:?err}",
+			"    MYSQL_USER: \\${${1/(.*)/${1:/upcase}/}_DB_USER:-mariadb}",
+			"  extends:",
+			"    file: ../common/compose.yaml",
+			"    service: mariadb",
+			"  networks:",
+			"    - vnet-$1",
+			"  volumes:",
+			"    - \\${DATA_DIR:?err}/$1/db:/var/lib/mysql"
+		],
+		"description": "Create a new MariaDB service"
+	},
+
+	"Docker compose Redict service": {
+		"prefix": "docker-redict-service",
+		"body": [
+			"$1-redis:",
+			"  container_name: $1-redis",
+			"  extends:",
+			"    file: ../common/compose.yaml",
+			"    service: redict",
+			"  networks:",
+			"    - vnet-$1",
+			"  volumes:",
+			"    - \\${DATA_DIR:?err}/$1/redict:/data"		
+		],
+		"description": "Create a new Redis service"
+	}
+
+}

@@ -1,0 +1,20 @@
+.env
+*.env
+!.env.example
+*.pem
+*.pub
+*.key
+
+# Compose overrides
+compose.dev.yaml
+
+# Sensitive configuration files
+compose/core/authelia/config/users.yml
+
+# MkDocs
+site/
+.cache/
+venv
+
+# Claude
+.claude/*.local.json

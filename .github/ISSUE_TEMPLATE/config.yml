@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: GitHub Discussions
+    url: https://github.com/esoso/omakase/discussions
+    about: Ask questions, share ideas, and discuss with the community
+  - name: Documentation
+    url: https://esoso.github.io/omakase/
+    about: Check the comprehensive documentation for guides and troubleshooting
+  - name: Security Issue
+    url: https://github.com/esoso/omakase/security/advisories/new
+    about: Report security vulnerabilities privately

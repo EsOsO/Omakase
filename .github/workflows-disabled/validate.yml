@@ -1,0 +1,30 @@
+---
+name: Validate Docker Compose
+run-name: ${{ github.actor }} is validating compose file
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_call:
+
+jobs:
+  validate:
+    runs-on: self-hosted
+
+    steps:
+      - name: "☁️ checkout repository"
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: "🔍 Validate docker compose file"
+        env:
+          INFISICAL_API_URL: ${{ vars.INFISICAL_API_URL }}
+          INFISICAL_DISABLE_UPDATE_CHECK: ${{ vars.INFISICAL_DISABLE_UPDATE_CHECK }}
+          INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+        run: |
+          export INFISICAL_TOKEN=$(infisical login --method=universal-auth --client-id=${{ vars.INFISICAL_CLIENT_ID }} --plain --silent)
+          infisical run \
+            --env=prod \
+            --silent \
+            --recursive \
+            --projectId ${{ vars.INFISICAL_PROJECT_ID }} \
+            -- docker compose -f compose.yaml -f compose.prod.yaml config --quiet

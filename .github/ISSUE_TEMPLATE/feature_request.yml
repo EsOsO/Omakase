@@ -1,0 +1,124 @@
+name: Feature Request
+description: Suggest a new feature or service for Omakase
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please provide as much detail as possible.
+
+  - type: dropdown
+    id: feature-type
+    attributes:
+      label: Feature Type
+      description: What type of feature are you requesting?
+      options:
+        - New Service
+        - Enhancement to Existing Service
+        - Infrastructure Improvement
+        - Documentation Improvement
+        - Security Enhancement
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: Is your feature request related to a problem? Please describe.
+      placeholder: "I'm frustrated when..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see
+      placeholder: "I would like to see..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative solutions or workarounds?
+      placeholder: "I have considered..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: Describe how you would use this feature
+      placeholder: "This feature would help me..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: service-details
+    attributes:
+      label: Service Details (if requesting new service)
+      description: |
+        If requesting a new service, provide:
+        - Official project link
+        - Why it fits Omakase's goals
+        - Self-hosting requirements
+        - License
+      placeholder: |
+        - Project: https://...
+        - Why: This service would...
+        - Requirements: Docker, PostgreSQL
+        - License: MIT
+    validations:
+      required: false
+
+  - type: textarea
+    id: benefits
+    attributes:
+      label: Benefits
+      description: What benefits would this feature bring to Omakase users?
+      placeholder: "This would benefit users by..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Nice to have
+        - Would be helpful
+        - Important
+        - Critical
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context, screenshots, or examples
+      placeholder: Add any other context here...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      description: Please confirm the following
+      options:
+        - label: I have checked existing issues and discussions to avoid duplicates
+          required: true
+        - label: This feature aligns with Omakase's goals (security-first, self-hosted, production-ready)
+          required: true
+        - label: I am willing to help test this feature when implemented
+          required: false
+        - label: I am willing to contribute to implementing this feature
+          required: false

@@ -1,0 +1,44 @@
+---
+# Pre-commit hooks for Omakase homelab
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # YAML Linting
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: [--strict, -c, .yamllint.yml]
+        files: \.(yaml|yml)$
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-yaml
+        args: [--unsafe]  # Allow custom YAML tags
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+      - id: detect-private-key
+        exclude: ^compose/.*/(config|scripts)/.*$
+
+  # Secret detection
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.2
+    hooks:
+      - id: gitleaks
+
+  # Omakase custom validation
+  - repo: local
+    hooks:
+      - id: omakase-quick-validate
+        name: Omakase Stack Validation
+        entry: ./scripts/quick-validate.sh
+        language: script
+        pass_filenames: false
+        files: \.(yaml|yml)$
+        stages: [pre-commit]

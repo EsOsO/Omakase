@@ -1,0 +1,101 @@
+---
+name: Deploy homelab docker compose
+run-name: ${{ github.actor }} is deploying homelab 🚀
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'compose/**'
+      - '.github/workflows/**'
+      - 'compose.yaml'
+      - 'compose.prod.yaml'
+      - 'compose.dev.yaml'
+
+jobs:
+  validate:
+    name: Validate docker compose file
+    uses: ./.github/workflows/validate.yml
+    secrets: inherit
+
+  deploy:
+    name: Deploy homelab stack
+    needs: validate
+    runs-on: self-hosted
+
+    steps:
+      - name: "☁️ checkout repository"
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: "rsync files"
+        uses: up9cloud/action-rsync@master
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          TARGET: /var/lib/docker-deploy/homelab/
+          USER: ${{ secrets.SSH_USER }}
+          VERBOSE: true
+          ARGS_MORE: >-
+            -c --force
+            --progress --stats
+            --exclude=.vscode
+            --exclude=.gitignore
+            --exclude=LICENSE
+            --exclude=Makefile
+            --exclude=cliff.toml
+            --exclude=renovate.json
+            --exclude=*.env
+            --exclude=*.example
+            --exclude=*.md
+            --exclude=*.dev.*
+          POST_SCRIPT: |
+            cd /var/lib/docker-deploy/homelab
+            export INFISICAL_API_URL=${{ vars.INFISICAL_API_URL }}
+            export INFISICAL_DISABLE_UPDATE_CHECK=${{ vars.INFISICAL_DISABLE_UPDATE_CHECK }}
+            export INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET=${{ secrets.INFISICAL_CLIENT_SECRET }}
+            export INFISICAL_TOKEN=$(infisical login --method=universal-auth --client-id=${{ vars.INFISICAL_CLIENT_ID }} --plain --silent)
+            export DATA_DIR=$(infisical secrets --env=prod --silent --projectId=${{ vars.INFISICAL_PROJECT_ID }} get --plain DATA_DIR)
+            infisical run \
+              --env=prod \
+              --silent \
+              --recursive \
+              --projectId=${{ vars.INFISICAL_PROJECT_ID }} \
+              --command "docker compose -f compose.yaml -f compose.prod.yaml config \
+                  | grep \"source: ${DATA_DIR}\" \
+                  | cut -d \" \" -f10 \
+                  | uniq \
+                  | sort \
+                  | xargs mkdir -pv \
+                    && docker compose -f compose.yaml -f compose.prod.yaml up -d --remove-orphans --no-color --quiet-pull \
+                    && docker system prune -af"
+  changelog:
+    name: Update changelog and bump version
+    needs: deploy
+    runs-on: self-hosted
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: "☁️ checkout repository"
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        uses: orhun/git-cliff-action@d77b37db2e3f7398432d34b72a12aa3e2ba87e51 # v4
+        id: git-cliff
+        with:
+          config: cliff.toml
+          args: --bump
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          OUTPUT: CHANGELOG.md
+          GITHUB_REPO: ${{ github.repository }}
+
+      - uses: stefanzweifel/git-auto-commit-action@28e16e81777b558cc906c8750092100bbb34c5e3 # v7
+        with:
+          commit_message: "chore(doc): update changelog [skip ci]"
+          file_pattern: "CHANGELOG.md"
+          tagging_message: ${{ steps.git-cliff.outputs.version }}

@@ -1,0 +1,19 @@
+{
+    "files.associations": {
+        "compose.yaml": "dockercompose"
+    },
+    "linter.linters": {
+        "yamllint": {
+            "enabled": true,
+            "languages": [
+                "yaml",
+                "dockercompose"
+            ]
+        }
+    },
+    "python.defaultInterpreterPath": "${workspaceFolder}/venv/bin/python",
+    "python.terminal.activateEnvironment": true,
+    "terminal.integrated.env.linux": {
+        "VIRTUAL_ENV": "${workspaceFolder}/venv"
+    }
+}

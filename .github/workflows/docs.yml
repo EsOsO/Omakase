@@ -1,0 +1,134 @@
+---
+name: Documentation
+run-name: ${{ github.actor }} is ${{ github.event_name == 'push' && 'deploying' || 'validating' }} documentation 📚
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'requirements.txt'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'requirements.txt'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build:
+    name: Build documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: "☁️ Checkout repository"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "🐍 Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: "📦 Install dependencies"
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: "🔨 Build documentation"
+        run: |
+          echo "Building documentation with MkDocs..."
+          mkdocs build --strict --verbose
+          echo "✅ Documentation built successfully"
+
+      - name: "📊 Calculate site size"
+        id: size
+        run: |
+          SITE_SIZE=$(du -sh site | cut -f1)
+          echo "site_size=$SITE_SIZE" >> $GITHUB_OUTPUT
+          echo "📦 Documentation site size: $SITE_SIZE"
+
+      - name: "📤 Upload documentation artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-site
+          path: site/
+          retention-days: 7
+
+      - name: "💬 Comment on PR"
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const siteSize = '${{ steps.size.outputs.site_size }}';
+            const comment = `## 📚 Documentation Build Report
+
+            ✅ Documentation built successfully!
+
+            **Site size:** ${siteSize}
+
+            **Preview:** Documentation will be deployed to GitHub Pages after merging to main.
+            **Current site:** https://esoso.github.io/omakase/
+
+            <details>
+            <summary>Build details</summary>
+
+            - **Workflow run:** [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - **Commit:** ${{ github.event.pull_request.head.sha }}
+            - **Python version:** 3.11
+            - **MkDocs Material theme:** Latest
+
+            </details>`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: "☁️ Checkout repository"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "🐍 Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: "📦 Install dependencies"
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: "🚀 Deploy to GitHub Pages"
+        run: |
+          echo "Deploying documentation to GitHub Pages..."
+          mkdocs gh-deploy --force --clean --verbose
+          echo "✅ Documentation deployed successfully"
+          echo "📖 View at: https://esoso.github.io/omakase/"
+
+      - name: "📢 Create deployment summary"
+        run: |
+          echo "## 🚀 Documentation Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Documentation successfully deployed to GitHub Pages" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Live URL:** https://esoso.github.io/omakase/" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployed at:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY

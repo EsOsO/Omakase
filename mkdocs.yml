@@ -1,0 +1,139 @@
+site_name: Omakase Documentation
+site_description: Production-ready Docker homelab infrastructure with 25+ services
+site_author: Omakase Community
+site_url: https://esoso.github.io/omakase/
+
+repo_name: esoso/omakase
+repo_url: https://github.com/esoso/omakase
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  language: en
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    # Light mode
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+
+plugins:
+  - search
+  - git-revision-date-localized:
+      enable_creation_date: true
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/esoso/omakase
+    - icon: fontawesome/solid/book
+      link: https://esoso.github.io/omakase/
+  analytics:
+    provider: google
+    property: !ENV GOOGLE_ANALYTICS_KEY
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Prerequisites: getting-started/prerequisites.md
+      - Installation: getting-started/installation.md
+      - Configuration: getting-started/configuration.md
+  - Deployment:
+      - Overview: deployment/index.md
+      - Proxmox LXC: deployment/proxmox-lxc.md
+      - Bare Metal: deployment/bare-metal.md
+      - Virtual Machine: deployment/vm-generic.md
+      - NAS Devices: deployment/nas.md
+      - Cloud VPS: deployment/cloud-vps.md
+      - Cloud Enterprise: deployment/cloud-enterprise.md
+  - Infrastructure:
+      - Network Architecture: infrastructure/network-architecture.md
+      - Traefik: infrastructure/traefik.md
+      - Authelia: infrastructure/authelia.md
+      - CrowdSec: infrastructure/crowdsec.md
+      - Cetusguard: infrastructure/cetusguard.md
+      - VPN Access: infrastructure/vpn.md
+  - Security:
+      - Overview: security/index.md
+      - Secrets Management: security/secrets-management.md
+      - Best Practices: security/best-practices.md
+  - Operations:
+      - Backup: operations/backup.md
+      - Maintenance: operations/maintenance.md
+      - Monitoring: operations/monitoring.md
+      - Performance: operations/performance.md
+      - Troubleshooting: operations/troubleshooting.md
+  - Services:
+      - Services Index: services/index.md
+  - Contributing:
+      - How to Contribute: contributing/index.md
+      - Adding Services: contributing/adding-services.md
