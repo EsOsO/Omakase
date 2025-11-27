@@ -1,0 +1,113 @@
+---
+access_control:
+  default_policy: deny
+  networks:
+    - name: internal
+      networks:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
+    - name: work
+      networks:
+        - 203.0.113.0/24  # Example public IP range - replace with your network
+        - 198.51.100.0/24  # Example public IP range - replace with your network
+  rules:
+    - domain:
+        - auth.{{ env "DOMAINNAME" }}
+      policy: bypass
+    - domain:
+        - '*.{{ env "DOMAINNAME" }}'
+      policy: bypass
+      resources:
+        - '^/api$'
+        - '^/api/'
+    - domain:
+        - vault.{{ env "DOMAINNAME" }}
+      policy: two_factor
+      resources:
+        - '^/admin$'
+      subject:
+        - group:admins
+    - domain:
+        - docs.{{ env "DOMAINNAME" }}
+        - stream.{{ env "DOMAINNAME" }}
+        - immich.{{ env "DOMAINNAME" }}
+        - vault.{{ env "DOMAINNAME" }}
+      policy: bypass
+    - domain:
+        - '*.{{ env "DOMAINNAME" }}'
+      networks:
+        - internal
+      policy: bypass
+    - domain:
+        - '*.{{ env "DOMAINNAME" }}'
+      networks:
+        - work
+      policy: one_factor
+    - domain:
+        - '*.{{ env "DOMAINNAME" }}'
+      policy: two_factor
+authentication_backend:
+  file:
+    path: /config/users.yml
+identity_providers:
+  oidc:
+    # OIDC clients are managed in oidc-clients.yml for better organization
+    # See .github/AUTHELIA_OIDC_MANAGEMENT.md for documentation
+    clients:
+      {{- fileContent "/config/oidc-clients.yml" | nindent 6 }}
+    cors:
+      allowed_origins:
+        - https://{{ env "DOMAINNAME"}}
+    enable_client_debug_messages: true
+    hmac_secret: '{{ env "IDENTITY_PROVIDERS_OIDC_HMAC_SECRET" }}'
+    jwks:
+      - key: |
+          {{- env "IDENTITY_PROVIDERS_OIDC_JWKS" | nindent 9 }}
+    lifespans:
+      access_token: 1h
+      authorize_code: 1m
+      id_token: 1h
+      refresh_token: 90m
+log:
+  format: json
+  level: {{ default "debug" (env "log_level") }}
+notifier:
+  disable_startup_check: true
+  smtp: null
+regulation:
+  ban_time: 5m
+  find_time: 2m
+  max_retries: 3
+server:
+  address: tcp://:9091
+  endpoints:
+    authz:
+      forward-auth:
+        implementation: ForwardAuth
+session:
+  cookies:
+    - authelia_url: https://auth.{{ env "DOMAINNAME" }}
+      default_redirection_url: https://{{ env "DOMAINNAME" }}
+      domain: {{ env "DOMAINNAME" }}
+  redis:
+    host: authelia-redict
+    port: 6379
+storage:
+  postgres:
+    address: tcp://authelia-db:5432
+    database: {{ env "POSTGRES_DB" }}
+    username: {{ env "POSTGRES_USER" }}
+telemetry:
+  metrics:
+    address: tcp://:9959/
+    buffers:
+      read: 4096
+      write: 4096
+    enabled: false
+    timeouts:
+      idle: 30s
+      read: 6s
+      write: 6s
+totp:
+  issuer: {{ env "DOMAINNAME" }}
