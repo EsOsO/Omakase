@@ -1,0 +1,61 @@
+# Authelia OIDC Clients Configuration
+#
+# This file consolidates all OIDC client definitions from the oidc.d/ directory.
+# Each client is loaded from its individual file to maintain modularity.
+#
+# To add a new OIDC client:
+# 1. Create a new file in oidc.d/<service-name> using the template below
+# 2. Add the required secrets to Infisical:
+#    - OIDC_<SERVICE>_CLIENT_ID
+#    - OIDC_<SERVICE>_CLIENT_SECRET_DIGEST
+# 3. Add a fileContent line below to include the new client
+# 4. Restart Authelia: docker compose restart authelia
+#
+# Template for new client file (oidc.d/<service>):
+# ---
+# - authorization_policy: 'two_factor'
+#   client_id: '${OIDC_<SERVICE>_CLIENT_ID}'
+#   client_name: '<Service Name>'
+#   client_secret: '${OIDC_<SERVICE>_CLIENT_SECRET_DIGEST}'
+#   public: false
+#   redirect_uris:
+#     - 'https://<service>.${DOMAINNAME}/<callback-path>'
+#   scopes:
+#     - email
+#     - openid
+#     - profile
+#   token_endpoint_auth_method: 'client_secret_post'
+#   userinfo_signed_response_alg: 'none'
+# ---
+
+# =============================================================================
+# INFRASTRUCTURE SERVICES
+# =============================================================================
+
+# pgAdmin - PostgreSQL Administration
+{{- fileContent "/config/oidc.d/pgadmin" | expandenv | nindent 0 }}
+
+# =============================================================================
+# PRODUCTIVITY SERVICES
+# =============================================================================
+
+# Vikunja - Task Management
+{{- fileContent "/config/oidc.d/vikunja" | expandenv | nindent 0 }}
+
+# =============================================================================
+# ADD NEW CLIENTS BELOW
+# =============================================================================
+# Follow this pattern for each new client:
+# # Service Name - Description
+# {{- fileContent "/config/oidc.d/<service>" | expandenv | nindent 0 }}
+#
+# Examples:
+#
+# # Nextcloud - File Sharing and Collaboration
+# {{- fileContent "/config/oidc.d/nextcloud" | expandenv | nindent 0 }}
+#
+# # Immich - Photo Management
+# {{- fileContent "/config/oidc.d/immich" | expandenv | nindent 0 }}
+#
+# # Jellyfin - Media Server
+# {{- fileContent "/config/oidc.d/jellyfin" | expandenv | nindent 0 }}

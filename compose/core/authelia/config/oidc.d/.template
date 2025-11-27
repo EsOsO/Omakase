@@ -1,0 +1,57 @@
+# OIDC Client Template
+# Copy this file to create a new OIDC client
+# Usage: cp .template <service-name>
+#
+# Required secrets in Infisical:
+# - OIDC_<SERVICE>_CLIENT_ID: Unique client identifier (e.g., "myservice")
+# - OIDC_<SERVICE>_CLIENT_SECRET_DIGEST: Hashed secret (use argon2id)
+#
+# Generate hashed secret:
+# docker run --rm authelia/authelia:latest \
+#   authelia crypto hash generate argon2 --password 'YOUR_SECRET_HERE'
+
+- authorization_policy: 'two_factor'  # Options: 'one_factor', 'two_factor', 'deny'
+  client_id: '${OIDC_<SERVICE>_CLIENT_ID}'
+  client_name: '<Service Display Name>'
+  client_secret: '${OIDC_<SERVICE>_CLIENT_SECRET_DIGEST}'
+  public: false  # Set true for public clients (SPAs, mobile apps without backend)
+
+  # Allowed redirect URIs (must match exactly what the service sends)
+  redirect_uris:
+    - 'https://<service>.${DOMAINNAME}/<oauth-callback-path>'
+    # Add more if the service needs multiple redirect URIs
+    # - 'https://<service>.${DOMAINNAME}/alternate-callback'
+
+  # OIDC scopes requested by this client
+  scopes:
+    - openid     # Required - OpenID Connect
+    - profile    # User profile information (name, username)
+    - email      # User email address
+    # - groups   # User group memberships (uncomment if needed)
+
+  # How client authenticates with Authelia
+  # Options: 'client_secret_post', 'client_secret_basic', 'none' (for public)
+  token_endpoint_auth_method: 'client_secret_post'
+
+  # Whether userinfo response should be signed
+  # Options: 'none', 'RS256'
+  userinfo_signed_response_alg: 'none'
+
+  # Consent mode - whether to show consent screen
+  # Options: 'auto' (skip for trusted), 'implicit' (always skip), 'explicit' (always show)
+  # consent_mode: 'auto'
+
+  # Optional: Grant types this client can use
+  # grant_types:
+  #   - authorization_code
+  #   - refresh_token
+
+  # Optional: Response types
+  # response_types:
+  #   - code
+
+  # Optional: Response modes
+  # response_modes:
+  #   - form_post
+  #   - query
+  #   - fragment
