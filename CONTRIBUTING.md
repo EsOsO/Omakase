@@ -296,7 +296,7 @@ Issues are automatically labeled, but common labels include:
 
 Need help contributing?
 
-- 📖 **Documentation**: https://esoso.github.io/omakase/
+- 📖 **Documentation**: https://esoso.github.io/Omakase/
 - 💬 **Discussions**: https://github.com/esoso/omakase/discussions
 - 🐛 **Issues**: https://github.com/esoso/omakase/issues
 - 📧 **Security**: See [SECURITY.md](.github/SECURITY.md)

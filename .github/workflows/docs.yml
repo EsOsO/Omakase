@@ -75,7 +75,7 @@ jobs:
             **Site size:** ${siteSize}
 
             **Preview:** Documentation will be deployed to GitHub Pages after merging to main.
-            **Current site:** https://esoso.github.io/omakase/
+            **Current site:** https://esoso.github.io/Omakase/
 
             <details>
             <summary>Build details</summary>
@@ -121,7 +121,7 @@ jobs:
           echo "Deploying documentation to GitHub Pages..."
           mkdocs gh-deploy --force --clean --verbose
           echo "✅ Documentation deployed successfully"
-          echo "📖 View at: https://esoso.github.io/omakase/"
+          echo "📖 View at: https://esoso.github.io/Omakase/"
 
       - name: "📢 Create deployment summary"
         run: |
@@ -129,6 +129,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ Documentation successfully deployed to GitHub Pages" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Live URL:** https://esoso.github.io/omakase/" >> $GITHUB_STEP_SUMMARY
+          echo "**Live URL:** https://esoso.github.io/Omakase/" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "**Deployed at:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
