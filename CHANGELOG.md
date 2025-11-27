@@ -17,7 +17,17 @@ Each section is organized by change type and service scope for easy navigation.
 
 ---
 
+## 1.0.0 - 2025-11-27
+
+### ✨ Minor Updates
+
+- core Add complete infrastructure core services
+
 ## 0.2.0 - 2025-11-27
+
+### Miscellaneous Tasks
+
+- changelog Update changelog for 0.2.0 [skip ci]
 
 ### ✨ Minor Updates
 
