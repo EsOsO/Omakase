@@ -60,9 +60,13 @@ filter_unconventional = true
 
 commit_parsers = [
   { message = "^chore\\(doc\\)", skip = true },
+  { message = "^chore\\(changelog\\).*\\[skip ci\\]", skip = true },
+  # Breaking changes - match commits with BREAKING CHANGE in body or ! after scope
+  { body = ".*BREAKING CHANGE.*", group = "🚨 Breaking Updates" },
+  { message = "^\\w+!:", group = "🚨 Breaking Updates" },
+  { message = "^\\w+\\(.*\\)!:", group = "🚨 Breaking Updates" },
   { message = "^fix", group = "🩹/📌 Patch/Digest Updates" },
   { message = "^feat", group = "✨ Minor Updates" },
-  { message = "^feat!", group = "🚨 Breaking Updates" },
   { message = "^chore", group = "Miscellaneous Tasks" },
 ]
 
