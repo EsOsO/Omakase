@@ -17,7 +17,17 @@ Each section is organized by change type and service scope for easy navigation.
 
 ---
 
+## 0.2.0 - 2025-11-27
+
+### ✨ Minor Updates
+
+- authelia Improve OIDC client management with centralized configuration (#5)
+
 ## 0.1.0 - 2025-11-27
+
+### Miscellaneous Tasks
+
+- changelog Update changelog for 0.1.0 [skip ci]
 
 ### Docs
 
