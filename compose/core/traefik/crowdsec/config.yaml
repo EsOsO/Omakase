@@ -1,0 +1,17 @@
+prometheus:
+  enabled: true
+plugin_config:
+  user: nobody
+  group: nogroup
+api:
+  cti:
+    #The API key you got from the console
+    key: ${CROWDSEC_CTI_API_KEY}
+    #How long should CTI lookups be kept in cache
+    cache_timeout: 60m
+    #How many items can we keep in cache
+    cache_size: 50
+    enabled: true
+    log_level: trace
+  client:
+    insecure_skip_verify: false

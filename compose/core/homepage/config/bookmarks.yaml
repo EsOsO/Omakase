@@ -1,0 +1,14 @@
+---
+- Management:
+    - Infisical:
+        - abbr: IN
+          href: https://infisical.{{HOMEPAGE_VAR_DOMAIN_NAME}}/
+    - Crowdsec:
+        - abbr: CS
+          href: https://app.crowdsec.net/login
+    - Cloudflare:
+        - abbr: CF
+          href: https://dash.cloudflare.com/login
+    - Github:
+        - abbr: GH
+          href: https://github.com/{{HOMEPAGE_VAR_GITHUB_USER}}/{{HOMEPAGE_VAR_GITHUB_REPO}}

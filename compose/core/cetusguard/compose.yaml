@@ -1,0 +1,39 @@
+networks:
+  vnet-socket:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.91.0/24
+    name: vnet-socket
+
+services:
+  cetusguard:
+    container_name: cetusguard
+    environment:
+      CETUSGUARD_BACKEND_ADDR: unix:///var/run/docker.sock
+      CETUSGUARD_FRONTEND_ADDR: tcp://:2375
+      CETUSGUARD_LOG_LEVEL: '7'
+      CETUSGUARD_RULES: |
+        GET %API_PREFIX_EVENTS%
+        GET,HEAD,POST %API_PREFIX_EXEC%(/.*)?
+        GET,HEAD,POST %API_PREFIX_CONTAINERS%(/.*)?
+        GET,HEAD %API_PREFIX_IMAGES%(/.*)?
+        GET,HEAD %API_PREFIX_VOLUMES%(/.*)?
+        GET,HEAD %API_PREFIX_NETWORKS%(/.*)?
+        GET,HEAD %API_PREFIX_BUILD%(/.*)?
+    expose:
+      - 2375
+    extends:
+      file: ../common/compose.yaml
+      service: base
+    healthcheck:
+      disable: true
+    image: docker.io/hectorm/cetusguard:v1.1.2@sha256:692496ba976990a14416cc5bed844a72df6a4d75d677932c7d75934492312ef3
+    mem_limit: 64M
+    mem_reservation: 32M
+    networks:
+      - vnet-socket
+    privileged: true
+    read_only: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro

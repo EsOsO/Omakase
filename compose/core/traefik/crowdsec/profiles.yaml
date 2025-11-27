@@ -1,0 +1,26 @@
+---
+name: bn_score
+on_error: continue
+filters:
+ - Alert.Remediation == true && Alert.GetScope() == "Ip" && CrowdsecCTI(Alert.GetValue()).GetBackgroundNoiseScore() > 0 && !CrowdsecCTI(Alert.GetValue()).IsFalsePositive()
+decisions:
+ - type: ban
+   duration: 12h
+duration_expr: "Sprintf('%dm', (240 + (120 * CrowdsecCTI(Alert.GetValue()).GetBackgroundNoiseScore())))"
+## 240 minutes (4 hours) + 120 minutes per point of background noise score
+## 120 = 20 * 60 / 10 (Max Background Noise Score)
+on_success: break
+notifications:
+  - telegram
+
+---
+name: default_ip_remediation
+filters:
+ - Alert.Remediation == true && Alert.GetScope() == "Ip"
+decisions:
+ - type: ban
+   duration: 12h
+duration_expr: "Sprintf('%dh', (GetDecisionsCount(Alert.GetValue()) + 1) * 12)"
+on_success: break
+notifications:
+  - telegram

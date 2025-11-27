@@ -1,0 +1,7 @@
+http:
+  serversTransports:
+    longer-timeouts:
+      forwardingTimeouts:
+        dialTimeout: 90s
+        idleConnTimeout: 180s
+        responseHeaderTimeout: 90s

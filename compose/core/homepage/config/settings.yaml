@@ -1,0 +1,32 @@
+---
+base: "{{HOMEPAGE_VAR_BASE_URL}}"
+color: gray
+headerStyle: boxedWidgets
+statusStyle: "dot"
+target: _blank
+title: Welcome to Okamase
+useEqualHeights: true
+
+# yamllint disable rule:key-ordering
+layout:
+  Management:
+    columns: 4
+    style: row
+  Personal:
+    columns: 3
+    icon: mdi-account-school
+    style: row
+  Media:
+    columns: 4
+    icon: mdi-multimedia
+    style: row
+  Utils:
+    columns: 4
+    style: row
+  "*arr":
+    columns: 4
+    style: row
+  Server Tools:
+    columns: 4
+    icon: https://cdn-icons-png.flaticon.com/512/252/252035.png
+    style: row

@@ -1,0 +1,3 @@
+local-docker:
+  host: cetusguard
+  port: 2375

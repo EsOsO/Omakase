@@ -1,0 +1,32 @@
+---
+services:
+  portainer:
+    command: -H 'tcp://cetusguard:2375'
+    container_name: portainer
+    depends_on:
+      - cetusguard
+    expose:
+      - 9000
+    extends:
+      file: ../common/compose.yaml
+      service: base
+    image: docker.io/portainer/portainer-ce:2.35.0-alpine@sha256:a43f24c2787de8b7e960f762d026411a3d045ba5c4ef9ee6f6a662f58ccfe195
+    labels:
+      crowdsec.enable: true
+      crowdsec.labels.type: portainer
+      homepage.description: |
+        Docker interface
+      homepage.group: Server Tools
+      homepage.href: https://portainer.${DOMAINNAME:?err}
+      homepage.icon: sh-portainer
+      homepage.name: Portainer
+      homepage.siteMonitor: http://portainer:9000
+      traefik.enable: true
+      traefik.http.routers.portainer.middlewares: chain-authelia@file
+      traefik.http.routers.portainer.rule: Host(`portainer.${DOMAINNAME:?err}`)
+      traefik.http.services.portainer.loadbalancer.server.port: 9000
+    networks:
+      - vnet-socket
+      - vnet-ingress
+    volumes:
+      - $DATA_DIR/portainer:/data

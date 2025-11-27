@@ -1,0 +1,42 @@
+type: http
+name: telegram
+
+log_level: debug
+url: https://api.telegram.org/bot${TELEGRAM_BOT_ID}/sendMessage
+method: POST
+headers:
+  Content-Type: application/json
+format: |
+  {
+   "chat_id": "{{ env "TELEGRAM_CHAT_ID" }}",
+   "parse_mode": "MarkdownV2",
+   "protect_content": "true",
+   "text": "
+    {{- range . -}}
+    {{$alert := . -}}
+    {{- range .Decisions -}}
+    🚫 *CROWDSEC* 🚫\n\nIP: `{{.Value}}`\nAction: *{{.Type}}*\nDuration: *{{.Duration}}*\nTrigger: *{{.Scenario}}*
+    {{- $cti := $alert.Source.IP | CrowdsecCTI  -}}
+    \n\n__Scores__\n_Overall_: {{$cti.Scores.Overall.Total}}\n_Last Day_: {{$cti.Scores.LastDay.Total}}\n_Last Week_: {{$cti.Scores.LastWeek.Total}}\n_Last Month_: {{$cti.Scores.LastMonth.Total}}
+    {{if $cti.Classifications}}\n\\[{{range $cat := $cti.Classifications.Classifications}}*{{$cat.Name}}* {{end}}\\] {{end}}
+    {{end}}
+    {{end}}
+   ",
+   "reply_markup": {
+      "inline_keyboard": [
+          {{ $arrLength := len . -}}
+          {{ range $i, $value := . -}}
+          {{ $V := $value.Source.Value -}}
+          [
+              {
+                  "text": "See {{ $V }} on shodan\.io",
+                  "url": "https://www.shodan.io/host/{{ $V -}}"
+              },
+              {
+                  "text": "See {{ $V }} on crowdsec\.net",
+                  "url": "https://app.crowdsec.net/cti/{{ $V -}}"
+              }
+          ]{{if lt $i ( sub $arrLength 1) }},{{end }}
+      {{end -}}
+      ]
+  }

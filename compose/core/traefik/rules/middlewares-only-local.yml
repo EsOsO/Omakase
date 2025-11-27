@@ -1,0 +1,10 @@
+http:
+  middlewares:
+    middlewares-only-local:
+      ipAllowList:
+        ipStrategy:
+          excludedIPs: "10.0.1.1" # HAProxy
+        sourceRange:
+          - 10.0.0.0/8
+          - 172.16.0.0/12
+          - 192.168.0.0/18

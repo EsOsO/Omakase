@@ -1,0 +1,23 @@
+http:
+  middlewares:
+    middlewares-secure-headers:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - OPTIONS
+          - PUT
+        accessControlMaxAge: 100
+        browserXssFilter: true
+        contentTypeNosniff: true
+        # forceSTSHeader: true # This is a good thing but it can be tricky. Enable after everything works.
+        customFrameOptionsValue: SAMEORIGIN
+        customResponseHeaders:
+          X-Robots-Tag: none,noarchive,nosnippet,notranslate,noimageindex,
+          server: ''
+        hostsProxyHeaders:
+          - X-Forwarded-Host
+        permissionsPolicy: camera=(), microphone=(self), geolocation=(), payment=(), usb=(), vr=()
+        referrerPolicy: same-origin
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 15552000

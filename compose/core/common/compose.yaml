@@ -1,0 +1,88 @@
+services:
+  base:
+    cpus: 1
+    environment:
+      PGID: ${PGID:?err}
+      PUID: ${PUID:?err}
+      TZ: ${TZ:?err}
+    logging:
+      driver: journald
+    mem_limit: 128M
+    mem_reservation: 64M
+    restart: on-failure:3
+    security_opt:
+      - no-new-privileges
+
+  mariadb:
+    command: >-
+      --transaction-isolation=READ-COMMITTED
+      --log-bin=binlog
+      --binlog-format=ROW
+    environment:
+      MARIADB_RANDOM_ROOT_PASSWORD: true
+    expose:
+      - 3306
+    extends:
+      service: base
+    healthcheck:
+      interval: 10s
+      retries: 3
+      start_period: 10s
+      test: healthcheck.sh --connect --innodb_initialized
+      timeout: 5s
+    image: docker.io/mariadb:12@sha256:439d77b7092f9acde784990bbc623f263b1e4e0540cf5e94fc49e4a33c0994a1
+    mem_limit: 256M
+    mem_reservation: 128M
+
+  postgres:
+    extends:
+      service: base
+    healthcheck:
+      interval: 5s
+      retries: 10
+      test: pg_isready -h localhost -d $$POSTGRES_DB -U $$POSTGRES_USER
+      timeout: 10s
+    image: docker.io/postgres:16-alpine@sha256:029660641a0cfc575b14f336ba448fb8a75fd595d42e1fa316b9fb4378742297
+    mem_limit: 256M
+    mem_reservation: 128M
+
+  postgres-12:
+    extends:
+      service: postgres
+    image: docker.io/postgres:12-alpine@sha256:7c8f4870583184ebadf7f17a6513620aac5f365a7938dc6a6911c1d5df2f481a
+
+  postgres-14:
+    extends:
+      service: postgres
+    image: docker.io/postgres:14-alpine@sha256:cb54bb67c0fca8b439f18c1daadb315ad67de1faf8c387988c63080d15a54145
+
+  redict:
+    command: /redict.conf
+    expose:
+      - 6379
+    extends:
+      service: base
+    healthcheck:
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      test: redict-cli --raw incr ping
+      timeout: 10s
+    image: registry.redict.io/redict:7.3.6@sha256:a530d8b4a54fd664d68d8323010ab1c6d6d1d652dcb3e680b2be8450e2687ce2
+    mem_limit: 32M
+    mem_reservation: 16M
+    user: ${PUID:?err}
+    volumes:
+      - ./redict/redict.conf:/redict.conf:ro
+
+  restic:
+    environment:
+      AWS_ACCESS_KEY_ID: '${RESTIC_AWS_ACCESS_KEY_ID:?err}'
+      AWS_SECRET_ACCESS_KEY: '${RESTIC_AWS_SECRET_ACCESS_KEY:?err}'
+      RESTIC_CACHE_DIR: /restic/cache
+      RESTIC_PASSWORD: '${RESTIC_PASSWORD:?err}'
+      RESTIC_REPOSITORY: '${RESTIC_REPOSITORY:?err}'
+    extends:
+      service: base
+    hostname: homelab
+    image: docker.io/mazzolino/restic:1.8.0@sha256:5e5a36b64b9a2cac1179c553f4bb676b887b9749737a2872f5cf0a775f94c63e

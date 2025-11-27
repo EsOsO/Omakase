@@ -1,0 +1,13 @@
+- authorization_policy: 'two_factor'
+  client_id: '${OIDC_VIKUNJA_CLIENT_ID}'
+  client_name: 'Vikunja'
+  client_secret: '${OIDC_VIKUNJA_CLIENT_SECRET_DIGEST}'
+  public: false
+  redirect_uris:
+    - 'https://todo.${DOMAINNAME}/auth/openid/authelia'
+  scopes:
+    - 'email'
+    - 'openid'
+    - 'profile'
+  token_endpoint_auth_method: 'client_secret_post'
+  userinfo_signed_response_alg: 'none'

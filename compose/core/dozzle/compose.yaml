@@ -1,0 +1,25 @@
+services:
+  dozzle:
+    container_name: dozzle
+    environment:
+      DOZZLE_LEVEL: ${log_level:-info}
+      DOZZLE_NO_ANALYTICS: true
+    extends:
+      file: ../common/compose.yaml
+      service: base
+    image: ghcr.io/amir20/dozzle:v8.14.8@sha256:0f987e852dad0eea1c3465c85a4ff1eef5ce693bdee7d030950050f073ab7d4e
+    labels:
+      homepage.description: |
+        Simple Container Monitoring and Logging
+      homepage.group: Server Tools
+      homepage.href: https://dozzle.${DOMAINNAME:?err}
+      homepage.icon: sh-dozzle
+      homepage.name: Dozzle
+      homepage.siteMonitor: http://dozzle:8080
+      traefik.enable: true
+      traefik.http.routers.dozzle.middlewares: chain-authelia@file, middlewares-compress@file
+      traefik.http.routers.dozzle.rule: Host(`dozzle.${DOMAINNAME:?err}`)
+    networks:
+      - vnet-ingress
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

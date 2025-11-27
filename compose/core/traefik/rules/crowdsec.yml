@@ -1,0 +1,19 @@
+http:
+  middlewares:
+    crowdsec:
+      plugin:
+        crowdsec-bouncer:
+          crowdsecappsecenabled: true
+          crowdsecappsechost: 'crowdsec:7422'
+          crowdseclapihost: 'crowdsec:8080'
+          crowdseclapikey: '{{ env "BOUNCER_KEY_TRAEFIK" }}'
+          clienttrustedips:
+            - "10.0.0.0/8"
+            - "172.16.0.0/12"
+            - "192.168.0.0/16"
+          forwardedheaderstrustedips:
+            - "10.0.1.1" # HAProxy
+          enabled: true
+          loglevel: INFO
+          rediscacheenabled: true
+          rediscachehost: 'traefik-redict:6379'

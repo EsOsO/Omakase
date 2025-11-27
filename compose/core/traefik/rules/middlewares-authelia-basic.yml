@@ -1,0 +1,11 @@
+http:
+  middlewares:
+    middlewares-authelia-basic:
+      forwardAuth:
+        address: http://authelia:9091/api/verify?auth=basic
+        authResponseHeaders:
+          - Remote-User
+          - Remote-Groups
+          - Remote-Email
+          - Remote-Name
+        trustForwardHeader: true

@@ -1,0 +1,157 @@
+networks:
+  vnet-ingress:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.90.0/24
+    name: vnet-ingress
+  vnet-traefik:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.10.0/29
+    name: vnet-traefik
+
+services:
+  crowdsec:
+    container_name: crowdsec
+    depends_on:
+      cetusguard:
+        condition: service_started
+      traefik-redict:
+        condition: service_started
+    environment:
+      BOUNCER_KEY_TRAEFIK: ${TRAEFIK_CROWDSEC_BOUNCER:?err}
+      COLLECTIONS: |
+        crowdsecurity/appsec-generic-rules
+        crowdsecurity/appsec-virtual-patching
+        crowdsecurity/traefik
+        Dominic-Wagner/vaultwarden
+        LePresidente/authelia
+        openappsec/openappsec
+      CROWDSEC_CTI_API_KEY: ${CROWDSEC_CTI_API_KEY:?err}
+      DOCKER_HOST: "tcp://cetusguard:2375"
+      NTFY_PASSWORD: ${CROWDSEC_NTFY_PASSWORD:?err}
+      NTFY_USER: ${CROWDSEC_NTFY_USER:-crowdsec}
+      TELEGRAM_BOT_ID: ${TELEGRAM_BOT_ID:?err}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:?err}
+    expose:
+      - 6060
+      - 7422
+      - 8080
+    extends:
+      file: ../common/compose.yaml
+      service: base
+    image: ghcr.io/crowdsecurity/crowdsec:v1.7.3@sha256:4beb1633cf4f41bb6f9e64d065d151d3aa5e3aa7082d5c3061a243037db0d890
+    networks:
+      - vnet-traefik
+      - vnet-socket
+    volumes:
+      - ./crowdsec/acquis.d:/etc/crowdsec/acquis.d:ro
+      - ./crowdsec/config.yaml:/etc/crowdsec/config.yaml.local:ro
+      - ./crowdsec/ip-whitelist.yaml:/etc/crowdsec/parsers/s02-enrich/ip-whitelist.yaml:ro
+      - ./crowdsec/profiles.yaml:/etc/crowdsec/profiles.yaml.local:ro
+      - ./crowdsec/telegram.yaml:/etc/crowdsec/notifications/telegram.yaml:ro
+      - ${DATA_DIR:?err}/traefik/crowdsec/data:/var/lib/crowdsec/data
+      - ${DATA_DIR:?err}/traefik/crowdsec/etc:/etc/crowdsec
+
+  traefik:
+    command:
+      - '--accessLog=true'
+      - '--accessLog.format=json'
+      - '--accessLog.filters.statusCodes=200'
+      - '--accessLog.filters.statusCodes=400-599'
+      - '--accessLog.fields.headers.defaultMode=drop'
+      - '--accessLog.fields.headers.names.User-Agent=keep'
+      - '--api.dashboard=true'
+      - '--api=true'
+      - '--entryPoints.metrics.address=:8899'
+      - '--entrypoints.web.address=:80'
+      - '--entrypoints.web.asDefault=true'
+      - '--entryPoints.web.forwardedHeaders.insecure=true'
+      - '--entryPoints.web.forwardedHeaders.trustedIPs=${TRAEFIK_TRUSTED_IPS:?err}'
+      - '--entryPoints.web.proxyProtocol.trustedIPs=${TRAEFIK_TRUSTED_IPS:?err}'
+      - '--entryPoints.deluge.address=:7623'
+      - '--entryPoints.jellyfin-svc.address=:1900/udp'
+      - '--entryPoints.jellyfin-clt.address=:7359/udp'
+      - '--entryPoints.unifi-stun.address=:3487/udp'
+      - '--entryPoints.unifi-speed.address=:6789/udp'
+      - '--entryPoints.unifi-discovery.address=:10001/udp'
+      - '--experimental.plugins.crowdsec-bouncer.modulename=github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin'
+      - '--experimental.plugins.crowdsec-bouncer.version=v1.4.2'
+      - '--global.checkNewVersion=false'
+      - '--global.sendAnonymousUsage=false'
+      - '--log.level=${LOG_LEVEL:-INFO}'
+      - '--log=true'
+      - '--log.format=json'
+      - '--metrics.prometheus.addEntryPointsLabels=true'
+      - '--metrics.prometheus.addServicesLabels=true'
+      - '--metrics.prometheus.buckets=0.100000, 0.300000, 1.200000, 5.000000'
+      - '--metrics.prometheus.entryPoint=metrics'
+      - '--metrics.prometheus=false'
+      - '--ping=true'
+      - '--providers.docker.endpoint=tcp://cetusguard:2375'
+      - '--providers.docker.exposedByDefault=false'
+      - '--providers.docker.network=vnet-ingress'
+      - '--providers.docker=true'
+      - '--providers.file.directory=/rules'
+    container_name: traefik
+    depends_on:
+      cetusguard:
+        condition: service_started
+      crowdsec:
+        condition: service_started
+    environment:
+      BOUNCER_KEY_TRAEFIK: ${TRAEFIK_CROWDSEC_BOUNCER:?err}
+      DOMAINNAME: ${DOMAINNAME:?err}
+    extends:
+      file: ../common/compose.yaml
+      service: base
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    healthcheck:
+      test: traefik healthcheck --ping
+    image: docker.io/traefik:v3.6.1@sha256:fd5932c796f7e2db9fd6bff485ef693d53797f0ee8ad03dc68aa424ea6f21958
+    labels:
+      crowdsec.enable: true
+      crowdsec.labels.type: traefik
+      homepage.description: |
+        Traefik is an open-source Application Proxy that makes publishing your
+        services a fun and easy experience. It receives requests on behalf of
+        your system and identifies which components are responsible for
+        handling them, and routes them securely.
+      homepage.group: Server Tools
+      homepage.href: https://traefik.${DOMAINNAME}
+      homepage.icon: sh-traefik
+      homepage.name: Traefik
+      homepage.widget.type: traefik
+      homepage.widget.url: https://traefik.${DOMAINNAME}
+      traefik.enable: true
+      traefik.http.routers.api.middlewares: chain-authelia@file
+      traefik.http.routers.api.rule: Host(`traefik.${DOMAINNAME}`)
+      traefik.http.routers.api.service: api@internal
+    mem_limit: 256M
+    networks:
+      - vnet-traefik
+      - vnet-socket
+      - vnet-ingress
+    ports:
+      - "80:80/tcp"
+      - "1900:1900/udp"
+      - "3487:3487/udp"
+      - "6789:6789/udp"
+      - "7359:7359/udp"
+      - "7623:7623/tcp"
+      - "10001:10001/udp"
+    volumes:
+      - ./rules:/rules:ro
+
+  traefik-redict:
+    container_name: traefik-redict
+    extends:
+      file: ../common/compose.yaml
+      service: redict
+    networks:
+      - vnet-traefik
+    volumes:
+      - ${DATA_DIR:?err}/traefik/redict:/data

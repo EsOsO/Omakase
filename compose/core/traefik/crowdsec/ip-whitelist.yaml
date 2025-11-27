@@ -1,0 +1,10 @@
+description: "Custom whitelist"
+name: my/whitelists
+whitelist:
+  cidr:
+    # - "203.0.113.0/24"  # Example public IP - replace with your network
+    # - "198.51.100.0/24"  # Example public IP - replace with your network
+    - "192.168.0.0/16"
+    - "172.16.0.0/12"
+    - "10.0.0.0/8"
+  reason: "custom whitelist"

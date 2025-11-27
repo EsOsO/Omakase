@@ -1,0 +1,6 @@
+http:
+  middlewares:
+    middlewares-compress:
+      compress:
+        excludedContentTypes:
+          - text/event-stream

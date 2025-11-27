@@ -1,0 +1,16 @@
+http:
+  routers:
+    infisical:
+      entryPoints:
+        - web
+      middlewares:
+        - chain-authelia
+        - middlewares-only-local
+      rule: Host(`infisical.{{env "DOMAINNAME"}}`)
+      service: infisical
+  services:
+    infisical:
+      loadBalancer:
+        servers:
+          - url: http://{{env "INFISICAL_HOST"}}
+        serversTransport: skip-ssl-verify
