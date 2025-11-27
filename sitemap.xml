@@ -1,115 +1,115 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://esoso.github.io/omakase/</loc>
+         <loc>https://esoso.github.io/Omakase/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/contributing/</loc>
+         <loc>https://esoso.github.io/Omakase/contributing/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/contributing/adding-services/</loc>
+         <loc>https://esoso.github.io/Omakase/contributing/adding-services/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/deployment/</loc>
+         <loc>https://esoso.github.io/Omakase/deployment/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/deployment/bare-metal/</loc>
+         <loc>https://esoso.github.io/Omakase/deployment/bare-metal/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/deployment/cloud-enterprise/</loc>
+         <loc>https://esoso.github.io/Omakase/deployment/cloud-enterprise/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/deployment/cloud-vps/</loc>
+         <loc>https://esoso.github.io/Omakase/deployment/cloud-vps/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/deployment/nas/</loc>
+         <loc>https://esoso.github.io/Omakase/deployment/nas/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/deployment/proxmox-lxc/</loc>
+         <loc>https://esoso.github.io/Omakase/deployment/proxmox-lxc/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/deployment/vm-generic/</loc>
+         <loc>https://esoso.github.io/Omakase/deployment/vm-generic/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/getting-started/configuration/</loc>
+         <loc>https://esoso.github.io/Omakase/getting-started/configuration/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/getting-started/installation/</loc>
+         <loc>https://esoso.github.io/Omakase/getting-started/installation/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/getting-started/prerequisites/</loc>
+         <loc>https://esoso.github.io/Omakase/getting-started/prerequisites/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/infrastructure/authelia/</loc>
+         <loc>https://esoso.github.io/Omakase/infrastructure/authelia/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/infrastructure/cetusguard/</loc>
+         <loc>https://esoso.github.io/Omakase/infrastructure/cetusguard/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/infrastructure/crowdsec/</loc>
+         <loc>https://esoso.github.io/Omakase/infrastructure/crowdsec/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/infrastructure/network-architecture/</loc>
+         <loc>https://esoso.github.io/Omakase/infrastructure/network-architecture/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/infrastructure/traefik/</loc>
+         <loc>https://esoso.github.io/Omakase/infrastructure/traefik/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/infrastructure/vpn/</loc>
+         <loc>https://esoso.github.io/Omakase/infrastructure/vpn/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/operations/backup/</loc>
+         <loc>https://esoso.github.io/Omakase/operations/backup/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/operations/maintenance/</loc>
+         <loc>https://esoso.github.io/Omakase/operations/maintenance/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/operations/monitoring/</loc>
+         <loc>https://esoso.github.io/Omakase/operations/monitoring/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/operations/performance/</loc>
+         <loc>https://esoso.github.io/Omakase/operations/performance/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/operations/troubleshooting/</loc>
+         <loc>https://esoso.github.io/Omakase/operations/troubleshooting/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/security/</loc>
+         <loc>https://esoso.github.io/Omakase/security/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/security/best-practices/</loc>
+         <loc>https://esoso.github.io/Omakase/security/best-practices/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/security/secrets-management/</loc>
+         <loc>https://esoso.github.io/Omakase/security/secrets-management/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
     <url>
-         <loc>https://esoso.github.io/omakase/services/</loc>
+         <loc>https://esoso.github.io/Omakase/services/</loc>
          <lastmod>2025-11-27</lastmod>
     </url>
 </urlset>
