@@ -4,7 +4,7 @@ This document describes the branch protection rules for the Omakase repository a
 
 ## Current Configuration (Solo Maintainer)
 
-The `main` branch is currently configured for a **solo maintainer** workflow:
+The `main` branch is currently configured for a **solo maintainer** workflow with enforced PR process:
 
 ### Protection Rules
 
@@ -12,19 +12,20 @@ The `main` branch is currently configured for a **solo maintainer** workflow:
 |------|--------|-------------|
 | **Pull Requests Required** | ✅ Enabled | All changes must go through PR |
 | **Approvals Required** | ❌ Disabled | No approval needed (solo maintainer) |
-| **Status Checks** | ✅ Enabled | CI checks must pass before merge |
-| **Conversation Resolution** | ✅ Enabled | All comments must be resolved |
-| **Enforce on Admins** | ❌ Disabled | Admins can bypass restrictions |
+| **Status Checks** | ⏸️ Configured | CI checks will be required when enabled |
+| **Enforce on Admins** | ✅ Enabled | Even admins must follow PR workflow |
 | **Force Pushes** | ❌ Blocked | No force pushes allowed |
 | **Branch Deletion** | ❌ Blocked | Cannot delete main branch |
 
 ### What This Means
 
 As the sole maintainer, you:
-- ✅ **MUST** create pull requests for all changes (no direct pushes to `main`)
-- ✅ **CAN** merge your own PRs without external approval
-- ✅ **MUST** resolve all PR comments before merging
+- ✅ **MUST** create pull requests for all changes (direct pushes to `main` are blocked)
+- ✅ **MUST** use feature branches for development
+- ✅ **CAN** approve and merge your own PRs without external approval
+- ✅ **MUST** resolve all PR comments before merging (when enabled)
 - ✅ **MUST** wait for CI checks to pass (when configured)
+- ❌ **CANNOT** push directly to main (even as admin)
 - ❌ **CANNOT** force push to main
 - ❌ **CANNOT** delete the main branch
 
