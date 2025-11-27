@@ -1,7 +1,7 @@
 site_name: Omakase Documentation
 site_description: Production-ready Docker homelab infrastructure with 25+ services
 site_author: Omakase Community
-site_url: https://esoso.github.io/omakase/
+site_url: https://esoso.github.io/Omakase/
 
 repo_name: esoso/omakase
 repo_url: https://github.com/esoso/omakase
@@ -93,7 +93,7 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/esoso/omakase
     - icon: fontawesome/solid/book
-      link: https://esoso.github.io/omakase/
+      link: https://esoso.github.io/Omakase/
   analytics:
     provider: google
     property: !ENV GOOGLE_ANALYTICS_KEY

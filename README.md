@@ -9,7 +9,7 @@
 
   **Production-ready Docker homelab infrastructure with security-first architecture**
 
-  [📚 Documentation](https://esoso.github.io/omakase/) · [🚀 Quick Start](#quick-start) · [💬 Discussions](https://github.com/esoso/omakase/discussions)
+  [📚 Documentation](https://esoso.github.io/Omakase/) · [🚀 Quick Start](#quick-start) · [💬 Discussions](https://github.com/esoso/omakase/discussions)
 </div>
 
 ---
@@ -65,7 +65,7 @@ Omakase is a comprehensive Infrastructure-as-Code solution for self-hosting 25+ 
 - 🔄 Secret management deployment (self-hosted, cloud, alternatives)
 - 🔄 Environment strategy (single, multi-host, profiles)
 
-**[Learn more about architectural flexibility →](https://esoso.github.io/omakase/deployment/)**
+**[Learn more about architectural flexibility →](https://esoso.github.io/Omakase/deployment/)**
 
 ## Quick Start
 
@@ -88,7 +88,7 @@ cd omakase
 make up
 ```
 
-**⚠️ Important**: This is a simplified quick start. For production deployment, please follow the [complete installation guide](https://esoso.github.io/omakase/getting-started/installation/).
+**⚠️ Important**: This is a simplified quick start. For production deployment, please follow the [complete installation guide](https://esoso.github.io/Omakase/getting-started/installation/).
 
 ## Deployment Scenarios
 
@@ -96,13 +96,13 @@ Omakase supports various deployment options:
 
 | Scenario | Best For | Complexity | Cost |
 |----------|----------|------------|------|
-| [**Proxmox LXC**](https://esoso.github.io/omakase/deployment/proxmox-lxc/) ⭐ | Advanced homelab | Medium | Hardware only |
-| [**Bare Metal**](https://esoso.github.io/omakase/deployment/bare-metal/) | Dedicated hardware | Low | Hardware only |
-| [**Virtual Machine**](https://esoso.github.io/omakase/deployment/vm-generic/) | Testing & dev | Low | Hardware/cloud |
-| [**NAS**](https://esoso.github.io/omakase/deployment/nas/) | Existing NAS | Low | Hardware only |
-| [**Cloud VPS**](https://esoso.github.io/omakase/deployment/cloud-vps/) | Remote access | Low | €20-50/month |
+| [**Proxmox LXC**](https://esoso.github.io/Omakase/deployment/proxmox-lxc/) ⭐ | Advanced homelab | Medium | Hardware only |
+| [**Bare Metal**](https://esoso.github.io/Omakase/deployment/bare-metal/) | Dedicated hardware | Low | Hardware only |
+| [**Virtual Machine**](https://esoso.github.io/Omakase/deployment/vm-generic/) | Testing & dev | Low | Hardware/cloud |
+| [**NAS**](https://esoso.github.io/Omakase/deployment/nas/) | Existing NAS | Low | Hardware only |
+| [**Cloud VPS**](https://esoso.github.io/Omakase/deployment/cloud-vps/) | Remote access | Low | €20-50/month |
 
-**[View all deployment options →](https://esoso.github.io/omakase/deployment/)**
+**[View all deployment options →](https://esoso.github.io/Omakase/deployment/)**
 
 ## Reference Architecture
 
@@ -117,20 +117,20 @@ This architecture is **not mandatory** - adapt to your infrastructure while main
 
 ## Documentation
 
-**📚 [Complete Documentation](https://esoso.github.io/omakase/)**
+**📚 [Complete Documentation](https://esoso.github.io/Omakase/)**
 
 ### Essential Guides
-- [Prerequisites](https://esoso.github.io/omakase/getting-started/prerequisites/) - What you need before starting
-- [Installation](https://esoso.github.io/omakase/getting-started/installation/) - Step-by-step setup guide
-- [Configuration](https://esoso.github.io/omakase/getting-started/configuration/) - Configure services and secrets
-- [Deployment Scenarios](https://esoso.github.io/omakase/deployment/) - Choose your deployment platform
-- [Operations](https://esoso.github.io/omakase/operations/backup/) - Backup, monitoring, maintenance
+- [Prerequisites](https://esoso.github.io/Omakase/getting-started/prerequisites/) - What you need before starting
+- [Installation](https://esoso.github.io/Omakase/getting-started/installation/) - Step-by-step setup guide
+- [Configuration](https://esoso.github.io/Omakase/getting-started/configuration/) - Configure services and secrets
+- [Deployment Scenarios](https://esoso.github.io/Omakase/deployment/) - Choose your deployment platform
+- [Operations](https://esoso.github.io/Omakase/operations/backup/) - Backup, monitoring, maintenance
 
 ### Core Infrastructure
-- [Traefik](https://esoso.github.io/omakase/infrastructure/traefik/) - Reverse proxy and routing
-- [Authelia](https://esoso.github.io/omakase/infrastructure/authelia/) - SSO authentication
-- [CrowdSec](https://esoso.github.io/omakase/infrastructure/crowdsec/) - Intrusion prevention
-- [Cetusguard](https://esoso.github.io/omakase/infrastructure/cetusguard/) - Docker socket proxy
+- [Traefik](https://esoso.github.io/Omakase/infrastructure/traefik/) - Reverse proxy and routing
+- [Authelia](https://esoso.github.io/Omakase/infrastructure/authelia/) - SSO authentication
+- [CrowdSec](https://esoso.github.io/Omakase/infrastructure/crowdsec/) - Intrusion prevention
+- [Cetusguard](https://esoso.github.io/Omakase/infrastructure/cetusguard/) - Docker socket proxy
 
 ## Useful Commands
 
@@ -145,7 +145,7 @@ make clean       # Clean unused resources
 make pwgen       # Generate secure passwords
 ```
 
-**[See all available commands →](https://esoso.github.io/omakase/getting-started/installation/#makefile-commands)**
+**[See all available commands →](https://esoso.github.io/Omakase/getting-started/installation/#makefile-commands)**
 
 ## Contributing
 
@@ -156,13 +156,13 @@ Contributions are welcome! Please:
 3. Follow [conventional commits](https://www.conventionalcommits.org/)
 4. Submit a pull request
 
-**[Read contribution guidelines →](https://esoso.github.io/omakase/contributing/)**
+**[Read contribution guidelines →](https://esoso.github.io/Omakase/contributing/)**
 
 ## Community & Support
 
 - 💬 [GitHub Discussions](https://github.com/esoso/omakase/discussions) - Ask questions, share ideas
 - 🐛 [Issue Tracker](https://github.com/esoso/omakase/issues) - Report bugs, request features
-- 📖 [Documentation](https://esoso.github.io/omakase/) - Comprehensive guides and reference
+- 📖 [Documentation](https://esoso.github.io/Omakase/) - Comprehensive guides and reference
 - 📝 [Changelog](CHANGELOG.md) - Version history and updates
 
 ## Project Status

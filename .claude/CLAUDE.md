@@ -319,7 +319,7 @@ Use `make network` to view allocated subnets before adding new services. Avoid c
 
 ## Documentation Resources
 
-- Full documentation: https://esoso.github.io/omakase/
+- Full documentation: https://esoso.github.io/Omakase/
 - Local docs: `mkdocs serve` (requires `pip install -r requirements.txt`)
 - Service docs: `docs/services/<service-name>.md`
 - Infrastructure docs: `docs/infrastructure/`
