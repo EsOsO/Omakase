@@ -17,7 +17,7 @@ Each section is organized by change type and service scope for easy navigation.
 
 ---
 
-## Unreleased
+## 0.1.0 - 2025-11-27
 
 ### Docs
 
@@ -26,6 +26,7 @@ Each section is organized by change type and service scope for easy navigation.
 ### ✨ Minor Updates
 
 - core Initial project setup with infrastructure and documentation
+- changelog Add automated changelog generation with git-cliff (#4)
 
 ### 🩹/📌 Patch/Digest Updates
 
