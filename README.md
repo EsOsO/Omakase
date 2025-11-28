@@ -14,6 +14,9 @@
 
 ---
 
+> [!NOTE]
+> **About This Documentation**: The documentation and guides in this project are AI-assisted. However, all Docker Compose configurations, service definitions, and infrastructure code are manually written and reviewed by the maintainer to ensure security, reliability, and correctness.
+
 ## What is Omakase?
 
 Omakase is a comprehensive Infrastructure-as-Code solution for self-hosting 25+ services in a secure, automated, and maintainable way. Born from a production homelab setup, it has been generalized to support different deployment scenarios while maintaining core security and operational principles.

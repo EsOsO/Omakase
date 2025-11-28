@@ -7,6 +7,9 @@ Welcome to **Omakase**, a production-ready Docker homelab infrastructure managin
 !!! info "What is Omakase?"
     Omakase (お任せ) is a Japanese phrase meaning "I'll leave it up to you" - perfectly capturing the philosophy of this project: a curated, opinionated, ready-to-deploy homelab infrastructure where all the hard decisions have been made for you.
 
+!!! note "About This Documentation"
+    The documentation and guides in this project are AI-assisted to provide comprehensive and helpful content. However, **all Docker Compose configurations, service definitions, and infrastructure code are manually written and thoroughly reviewed by the maintainer** to ensure security, reliability, and correctness.
+
 ## Why Omakase?
 
 <div class="grid cards" markdown>
