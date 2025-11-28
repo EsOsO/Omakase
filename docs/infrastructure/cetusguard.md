@@ -25,30 +25,53 @@ Cetusguard provides:
 
 ### Basic Setup
 
-Located in `compose.yaml`:
+Located in `compose/core/cetusguard/compose.yaml`:
 
 ```yaml
 services:
   cetusguard:
-    image: ghcr.io/hectorm/cetusguard:latest
+    image: docker.io/hectorm/cetusguard:v1.1.2
     container_name: cetusguard
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
+    extends:
+      file: ../common/compose.yaml
+      service: base  # Includes: restart, no-new-privileges, etc.
+    privileged: true  # Required for Docker socket access
+    read_only: true   # Container filesystem read-only
+    mem_limit: 64M
+    mem_reservation: 32M
     networks:
       - vnet-socket
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    expose:
+      - 2375  # Not exposed to host, only to vnet-socket network
     environment:
       CETUSGUARD_BACKEND_ADDR: unix:///var/run/docker.sock
-      CETUSGUARD_FRONTEND_ADDR: tcp://0.0.0.0:2375
-      CETUSGUARD_READONLY_ENABLED: "true"
+      CETUSGUARD_FRONTEND_ADDR: tcp://:2375
+      CETUSGUARD_LOG_LEVEL: '7'  # Debug level
+      CETUSGUARD_RULES: |
+        GET %API_PREFIX_EVENTS%
+        GET,HEAD,POST %API_PREFIX_EXEC%(/.*)?
+        GET,HEAD,POST %API_PREFIX_CONTAINERS%(/.*)?
+        GET,HEAD %API_PREFIX_IMAGES%(/.*)?
+        GET,HEAD %API_PREFIX_VOLUMES%(/.*)?
+        GET,HEAD %API_PREFIX_NETWORKS%(/.*)?
+        GET,HEAD %API_PREFIX_BUILD%(/.*)?
 
 networks:
   vnet-socket:
     name: vnet-socket
     driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.91.0/24
 ```
+
+!!! warning "Privileged Mode Required"
+    Cetusguard runs in **privileged mode** to access the Docker socket. This is necessary for socket proxying but the container filesystem is read-only and it's isolated on a dedicated network.
+
+!!! info "Rule-Based Access Control"
+    Cetusguard uses a **rules-based system** instead of simple read-only mode. Rules define which HTTP methods are allowed for which API endpoints using pattern matching with API prefix variables.
 
 ## Service Integration
 
@@ -98,58 +121,118 @@ All services needing Docker API:
 services:
   myservice:
     networks:
-      - ingress
-      - vnet-socket
+      - vnet-ingress  # For web access via Traefik
+      - vnet-socket   # For Docker API via Cetusguard
     environment:
       DOCKER_HOST: tcp://cetusguard:2375
 ```
 
-## Permissions
+## Permissions & Rules
 
-### Read-Only Mode
+### Rule-Based Access Control
 
-By default, Cetusguard operates in read-only mode:
-
-**Allowed operations**:
-- List containers: `GET /containers/json`
-- Inspect containers: `GET /containers/{id}/json`
-- View logs: `GET /containers/{id}/logs`
-- List images: `GET /images/json`
-- List networks: `GET /networks`
-- List volumes: `GET /volumes`
-
-**Blocked operations**:
-- Create containers: `POST /containers/create`
-- Start/stop containers: `POST /containers/{id}/start`
-- Delete containers: `DELETE /containers/{id}`
-- Pull images: `POST /images/create`
-
-### Writable Mode (Not Recommended)
-
-For services that need write access (use cautiously):
+Cetusguard uses a rules-based system with pattern matching:
 
 ```yaml
-environment:
-  CETUSGUARD_READONLY_ENABLED: "false"
-  CETUSGUARD_ALLOWLIST_ENABLED: "true"
-  CETUSGUARD_ALLOWLIST: "/containers/json,/images/json,/containers/create"
+CETUSGUARD_RULES: |
+  GET %API_PREFIX_EVENTS%                        # Event stream
+  GET,HEAD,POST %API_PREFIX_EXEC%(/.*)?         # Container exec
+  GET,HEAD,POST %API_PREFIX_CONTAINERS%(/.*)?   # Container operations
+  GET,HEAD %API_PREFIX_IMAGES%(/.*)?            # Image read-only
+  GET,HEAD %API_PREFIX_VOLUMES%(/.*)?           # Volume read-only
+  GET,HEAD %API_PREFIX_NETWORKS%(/.*)?          # Network read-only
+  GET,HEAD %API_PREFIX_BUILD%(/.*)?             # Build read-only
 ```
 
-**Warning**: Only enable write access if absolutely necessary and with minimal permissions.
+### API Prefix Variables
+
+Cetusguard uses variables for API versioning:
+
+- `%API_PREFIX_EVENTS%` → `/events`, `/v1.*/events`
+- `%API_PREFIX_EXEC%` → `/containers/.*/exec`, `/v1.*/containers/.*/exec`
+- `%API_PREFIX_CONTAINERS%` → `/containers`, `/v1.*/containers`
+- `%API_PREFIX_IMAGES%` → `/images`, `/v1.*/images`
+- `%API_PREFIX_VOLUMES%` → `/volumes`, `/v1.*/volumes`
+- `%API_PREFIX_NETWORKS%` → `/networks`, `/v1.*/networks`
+- `%API_PREFIX_BUILD%` → `/build`, `/v1.*/build`
+
+### Allowed Operations
+
+Based on the rules configuration:
+
+**Read Operations** (GET, HEAD):
+- ✅ List/inspect containers
+- ✅ View container logs
+- ✅ List/inspect images
+- ✅ List/inspect volumes
+- ✅ List/inspect networks
+- ✅ Event stream monitoring
+- ✅ Build information
+
+**Write Operations** (POST):
+- ✅ Container exec (for interactive shells)
+- ✅ Container operations (start, stop, restart, pause, unpause)
+- ✅ Container creation (for management tools)
+
+**Blocked Operations**:
+- ❌ DELETE operations (cannot delete containers, images, etc.)
+- ❌ Image pull/push
+- ❌ PUT operations (cannot update configs)
+
+!!! warning "POST Operations Allowed"
+    Unlike typical "read-only" proxies, this configuration **allows POST operations** on containers and exec endpoints. This is necessary for management tools like Portainer to function properly, but it means services can start/stop containers and execute commands.
+
+### Modifying Rules
+
+To restrict further, edit the rules:
+
+```yaml
+# Example: True read-only (no POST operations)
+CETUSGUARD_RULES: |
+  GET %API_PREFIX_EVENTS%
+  GET,HEAD %API_PREFIX_EXEC%(/.*)?
+  GET,HEAD %API_PREFIX_CONTAINERS%(/.*)?
+  GET,HEAD %API_PREFIX_IMAGES%(/.*)?
+  GET,HEAD %API_PREFIX_VOLUMES%(/.*)?
+  GET,HEAD %API_PREFIX_NETWORKS%(/.*)?
+  GET,HEAD %API_PREFIX_BUILD%(/.*)?
+```
+
+```yaml
+# Example: Allow specific operations only
+CETUSGUARD_RULES: |
+  GET %API_PREFIX_CONTAINERS%/json              # List only
+  GET %API_PREFIX_CONTAINERS%/.*/json          # Inspect only
+  GET %API_PREFIX_CONTAINERS%/.*/logs          # Logs only
+  GET %API_PREFIX_IMAGES%/json                  # Image list only
+```
 
 ## Security
 
 ### Security Options
 
-Always use security hardening:
+Cetusguard configuration includes:
 
 ```yaml
-security_opt:
-  - no-new-privileges:true
-read_only: true  # Container filesystem read-only
-tmpfs:
-  - /tmp
+extends:
+  file: ../common/compose.yaml
+  service: base  # Includes no-new-privileges:true
+privileged: true     # Required for Docker socket
+read_only: true      # Container filesystem read-only
+mem_limit: 64M       # Memory constraint
+mem_reservation: 32M # Reserved memory
 ```
+
+!!! danger "Privileged Mode Caveat"
+    While Cetusguard runs in **privileged mode** (required for Docker socket access), security is maintained through:
+
+    - ✅ Read-only container filesystem
+    - ✅ Network isolation (`vnet-socket` only)
+    - ✅ Rule-based API filtering
+    - ✅ Memory limits
+    - ✅ Docker socket mounted read-only
+    - ✅ No host network access
+    - ✅ Not exposed to external network
 
 ### Network Isolation
 
@@ -197,11 +280,17 @@ curl http://cetusguard:2375/version
 From service container:
 
 ```bash
-# List containers
+# List containers (allowed)
 docker exec myservice curl http://cetusguard:2375/v1.43/containers/json
 
-# Try write operation (should fail)
-docker exec myservice curl -X POST http://cetusguard:2375/v1.43/containers/create
+# Try container start (allowed by rules)
+docker exec myservice curl -X POST http://cetusguard:2375/v1.43/containers/{id}/start
+
+# Try delete operation (should fail - not in rules)
+docker exec myservice curl -X DELETE http://cetusguard:2375/v1.43/containers/{id}
+
+# Try image pull (should fail - POST not allowed for images)
+docker exec myservice curl -X POST http://cetusguard:2375/v1.43/images/create
 ```
 
 ### Audit Logs
@@ -263,42 +352,58 @@ environment:
 
 ## Advanced Configuration
 
-### Custom Allowlist
+### Custom Rules
 
-Allow specific operations:
+The `CETUSGUARD_RULES` environment variable uses a pattern-based syntax:
 
+**Format**: `<methods> <pattern>`
+
+**Examples**:
 ```yaml
-environment:
-  CETUSGUARD_READONLY_ENABLED: "false"
-  CETUSGUARD_ALLOWLIST_ENABLED: "true"
-  CETUSGUARD_ALLOWLIST: |
-    GET /containers/json
-    GET /containers/*/json
-    GET /containers/*/logs
-    POST /containers/*/start
-    POST /containers/*/stop
+CETUSGUARD_RULES: |
+  # Allow GET and HEAD for all container endpoints
+  GET,HEAD %API_PREFIX_CONTAINERS%(/.*)?
+
+  # Allow POST only for specific actions
+  POST %API_PREFIX_CONTAINERS%/.*/start
+  POST %API_PREFIX_CONTAINERS%/.*/stop
+  POST %API_PREFIX_CONTAINERS%/.*/restart
+
+  # Allow exec access (GET for info, POST for execution)
+  GET,POST %API_PREFIX_EXEC%(/.*)?
+
+  # Read-only image access
+  GET,HEAD %API_PREFIX_IMAGES%(/.*)?
 ```
 
-### Request Filtering
+**Pattern Syntax**:
+- `%API_PREFIX_*%` - Expands to API paths with version support
+- `(/.*)?` - Optional regex for subpaths
+- `.*` - Wildcard matching
 
-Filter by user agent:
+### Log Level
 
-```yaml
-environment:
-  CETUSGUARD_FILTER_ENABLED: "true"
-  CETUSGUARD_FILTER_USERAGENT: "Portainer,Homepage,Dozzle"
-```
-
-### Rate Limiting
-
-Prevent API abuse:
+Adjust logging verbosity (0-7):
 
 ```yaml
-environment:
-  CETUSGUARD_RATELIMIT_ENABLED: "true"
-  CETUSGUARD_RATELIMIT_REQUESTS: "100"
-  CETUSGUARD_RATELIMIT_PERIOD: "1m"
+CETUSGUARD_LOG_LEVEL: '7'  # Debug (most verbose)
+CETUSGUARD_LOG_LEVEL: '6'  # Info
+CETUSGUARD_LOG_LEVEL: '4'  # Warning
+CETUSGUARD_LOG_LEVEL: '3'  # Error (least verbose)
 ```
+
+### Frontend Address
+
+Change listening address/port:
+
+```yaml
+CETUSGUARD_FRONTEND_ADDR: tcp://:2375      # Default - all interfaces in container
+CETUSGUARD_FRONTEND_ADDR: tcp://0.0.0.0:2375  # Explicit all interfaces
+CETUSGUARD_FRONTEND_ADDR: tcp://127.0.0.1:2375 # Loopback only (less useful in container)
+```
+
+!!! info "No Rate Limiting or User-Agent Filtering"
+    The current Cetusguard configuration does not implement rate limiting or user-agent filtering. Access control is purely rule-based. All services on `vnet-socket` have equal access to allowed endpoints.
 
 ## Comparison with Alternatives
 
@@ -349,14 +454,64 @@ Direct Docker socket access (`/var/run/docker.sock`):
 - ⚠️ Can escape to host
 - ⚠️ Complete system compromise
 
-### Risk With Cetusguard
+### Risk With Cetusguard (Current Configuration)
 
-Read-only proxy:
-- ✅ Limited to read operations
-- ✅ Cannot create/modify containers
-- ✅ Cannot access host filesystem
-- ✅ Network isolated
-- ✅ Auditable access
+With POST operations enabled:
+- ✅ Network isolated (vnet-socket only)
+- ✅ Cannot DELETE containers/images
+- ✅ Cannot pull/push images
+- ✅ Auditable access (logs)
+- ⚠️ **Can start/stop/restart containers**
+- ⚠️ **Can execute commands in containers**
+- ⚠️ **Can create new containers** (if Portainer-like tools need it)
+
+!!! danger "Important Security Considerations"
+    The current configuration is **not truly read-only**. Services with access to Cetusguard can:
+
+    - Start, stop, restart, pause, unpause containers
+    - Execute arbitrary commands in running containers (`docker exec`)
+    - Potentially create containers (depends on exact rule interpretation)
+
+    This is a **trade-off for functionality** (Portainer, management tools). If compromised, a service on `vnet-socket` could:
+    - Stop critical services
+    - Execute commands in other containers
+    - Cause denial of service
+
+    **Mitigation**:
+    - Only trusted services connect to `vnet-socket`
+    - Monitor Cetusguard logs for suspicious activity
+    - Consider separate Cetusguard instances with different rules for different service tiers
+    - Regularly audit services with Docker API access
+
+### Recommended Rule Sets by Trust Level
+
+**High Trust (Management Tools)**:
+```yaml
+# Full management capability
+CETUSGUARD_RULES: |
+  GET %API_PREFIX_EVENTS%
+  GET,HEAD,POST %API_PREFIX_EXEC%(/.*)?
+  GET,HEAD,POST %API_PREFIX_CONTAINERS%(/.*)?
+  GET,HEAD %API_PREFIX_IMAGES%(/.*)?
+```
+
+**Medium Trust (Monitoring Tools)**:
+```yaml
+# Read-only plus exec for troubleshooting
+CETUSGUARD_RULES: |
+  GET %API_PREFIX_EVENTS%
+  GET,HEAD,POST %API_PREFIX_EXEC%(/.*)?
+  GET,HEAD %API_PREFIX_CONTAINERS%(/.*)?
+  GET,HEAD %API_PREFIX_IMAGES%(/.*)?
+```
+
+**Low Trust (Display Only)**:
+```yaml
+# Pure read-only
+CETUSGUARD_RULES: |
+  GET,HEAD %API_PREFIX_CONTAINERS%(/.*)?
+  GET,HEAD %API_PREFIX_IMAGES%(/.*)?
+```
 
 ## Migration from Direct Socket
 
@@ -392,12 +547,26 @@ If currently using direct socket mounts:
 
 ## Performance
 
-### Overhead
+### Resource Limits
 
-Cetusguard adds minimal overhead:
-- Network latency: <1ms
-- CPU usage: negligible
-- Memory usage: ~10MB
+Cetusguard is configured with conservative memory limits:
+
+```yaml
+mem_limit: 64M        # Hard limit - container killed if exceeded
+mem_reservation: 32M  # Soft limit - guaranteed memory
+```
+
+**Actual usage**:
+- Typical memory usage: 8-15MB
+- CPU usage: negligible (<1%)
+- Startup time: instant
+
+### Network Overhead
+
+Cetusguard adds minimal network overhead:
+- Latency: <1ms for most operations
+- Throughput: No significant impact
+- Connection pooling: Maintains persistent connections
 
 ### Benchmarking
 
@@ -411,7 +580,7 @@ time docker ps
 time docker -H tcp://cetusguard:2375 ps
 ```
 
-Difference should be negligible.
+Expected difference: 1-5ms (negligible for typical operations).
 
 ## See Also
 
