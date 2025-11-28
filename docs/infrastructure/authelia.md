@@ -13,37 +13,112 @@ Authelia features:
 
 ## Configuration
 
+### Service Architecture
+
+Located in `compose/core/authelia/compose.yaml`:
+
+```yaml
+services:
+  authelia:
+    image: ghcr.io/authelia/authelia:4.39.14
+    container_name: authelia
+    command: '--config /config/configuration.yml'
+    environment:
+      X_AUTHELIA_CONFIG_FILTERS: template  # Enable Go templating
+      AUTHELIA_SESSION_SECRET: ${AUTHELIA_SESSION_SECRET}
+      AUTHELIA_STORAGE_ENCRYPTION_KEY: ${AUTHELIA_STORAGE_ENCRYPTION_KEY}
+      AUTHELIA_STORAGE_POSTGRES_PASSWORD: ${AUTHELIA_DB_PASS}
+      AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET: ${...}
+      IDENTITY_PROVIDERS_OIDC_HMAC_SECRET: ${...}
+      IDENTITY_PROVIDERS_OIDC_JWKS: ${...}
+      # SMTP Configuration
+      AUTHELIA_NOTIFIER_SMTP_ADDRESS: submissions://${SMTP_SERVER}:${SMTP_PORT}
+      AUTHELIA_NOTIFIER_SMTP_USERNAME: ${SMTP_USERNAME}
+      AUTHELIA_NOTIFIER_SMTP_PASSWORD: ${SMTP_PASSWORD}
+      AUTHELIA_NOTIFIER_SMTP_SENDER: Authelia <noreply@${TLD}>
+    networks:
+      - vnet-ingress    # For Traefik access
+      - vnet-authelia   # Isolated network for DB and Redis
+    depends_on:
+      authelia-db:
+        condition: service_healthy
+      authelia-redict:
+        condition: service_healthy
+
+  authelia-db:
+    extends:
+      file: ../common/compose.yaml
+      service: postgres
+    environment:
+      POSTGRES_DB: ${AUTHELIA_DB_NAME:-authelia_db}
+      POSTGRES_USER: ${AUTHELIA_DB_USER:-authelia}
+      POSTGRES_PASSWORD: ${AUTHELIA_DB_PASS}
+    networks:
+      - vnet-authelia
+
+  authelia-redict:
+    extends:
+      file: ../common/compose.yaml
+      service: redict
+    networks:
+      - vnet-authelia
+```
+
+!!! info "Backend Architecture"
+    Authelia uses **PostgreSQL** for persistent storage (users, OIDC sessions, TOTP secrets) and **Redis (Redict)** for session caching. This is more robust than file-based storage.
+
 ### Main Configuration
 
-Located in `compose/authelia/config/configuration.yml`:
+Located in `compose/core/authelia/config/configuration.yml`:
 
 ```yaml
 server:
-  host: 0.0.0.0
-  port: 9091
+  address: tcp://:9091
+  endpoints:
+    authz:
+      forward-auth:
+        implementation: ForwardAuth  # Traefik integration
 
 authentication_backend:
   file:
-    path: /config/users_database.yml
-    password:
-      algorithm: argon2id
+    path: /config/users.yml  # Note: users.yml not users_database.yml
 
-access_control:
-  default_policy: deny
-  rules:
-    - domain: "*.yourdomain.com"
-      policy: two_factor
+storage:
+  postgres:
+    address: tcp://authelia-db:5432
+    database: {{ env "POSTGRES_DB" }}
+    username: {{ env "POSTGRES_USER" }}
 
 session:
-  name: authelia_session
-  domain: yourdomain.com
-  expiration: 1h
-  inactivity: 5m
+  redis:
+    host: authelia-redict
+    port: 6379
+  cookies:
+    - authelia_url: https://auth.{{ env "DOMAINNAME" }}
+      default_redirection_url: https://{{ env "DOMAINNAME" }}
+      domain: {{ env "DOMAINNAME" }}
+
+notifier:
+  smtp:
+    address: submissions://${SMTP_SERVER}:${SMTP_PORT}
+    # SMTP configured via environment variables
+
+regulation:
+  ban_time: 5m
+  find_time: 2m
+  max_retries: 3
+
+log:
+  format: json
+  level: debug
 ```
+
+!!! info "Template System"
+    Configuration uses **Go templates** (`{{ env "VARIABLE" }}`) for environment variable expansion. This is enabled by `X_AUTHELIA_CONFIG_FILTERS: template`.
 
 ### Users Database
 
-Located in `compose/authelia/config/users_database.yml`:
+Located in `compose/core/authelia/config/users.yml`:
 
 ```yaml
 users:
@@ -63,37 +138,82 @@ users:
       - users
 ```
 
+**Note**: File is named `users.yml`, not `users_database.yml`.
+
 ### Access Control Rules
 
-Fine-grained access policies:
+Fine-grained access policies with **network-based rules**:
 
 ```yaml
 access_control:
   default_policy: deny
 
+  # Define named networks
+  networks:
+    - name: internal
+      networks:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
+    - name: work
+      networks:
+        - 203.0.113.0/24  # Your public IP range
+
   rules:
-    # Bypass authentication for public services
-    - domain: "public.yourdomain.com"
+    # Bypass auth portal itself
+    - domain: auth.{{ env "DOMAINNAME" }}
       policy: bypass
 
-    # Single-factor for monitoring
-    - domain: "monitoring.yourdomain.com"
-      policy: one_factor
-      subject:
-        - "group:admins"
+    # Bypass API endpoints (for programmatic access)
+    - domain: '*.{{ env "DOMAINNAME" }}'
+      policy: bypass
+      resources:
+        - '^/api$'
+        - '^/api/'
 
-    # Two-factor for sensitive services
-    - domain:
-        - "vaultwarden.yourdomain.com"
-        - "admin.yourdomain.com"
+    # Two-factor for Vaultwarden admin
+    - domain: vault.{{ env "DOMAINNAME" }}
       policy: two_factor
+      resources:
+        - '^/admin$'
       subject:
-        - "group:admins"
+        - group:admins
 
-    # One-factor for regular services
-    - domain: "*.yourdomain.com"
+    # Bypass for public services
+    - domain:
+        - docs.{{ env "DOMAINNAME" }}
+        - stream.{{ env "DOMAINNAME" }}
+        - immich.{{ env "DOMAINNAME" }}
+        - vault.{{ env "DOMAINNAME" }}
+      policy: bypass
+
+    # Bypass from internal networks
+    - domain: '*.{{ env "DOMAINNAME" }}'
+      networks:
+        - internal
+      policy: bypass
+
+    # One-factor from work networks
+    - domain: '*.{{ env "DOMAINNAME" }}'
+      networks:
+        - work
       policy: one_factor
+
+    # Two-factor for everything else
+    - domain: '*.{{ env "DOMAINNAME" }}'
+      policy: two_factor
 ```
+
+!!! info "Network-Based Access Control"
+    Rules are evaluated **top to bottom**. The first matching rule is applied. This configuration:
+
+    1. **Bypasses** specific public services (docs, stream, immich, vault)
+    2. **Bypasses** all services from internal networks (RFC 1918)
+    3. Requires **one-factor** from known work networks
+    4. Requires **two-factor** from all other locations (default)
+
+!!! warning "API Endpoint Bypass"
+    API endpoints (`/api` and `/api/*`) are bypassed for programmatic access. Ensure services implement their own API authentication.
 
 ## User Management
 
@@ -104,7 +224,7 @@ access_control:
    docker exec authelia authelia crypto hash generate argon2 --password 'your-password'
    ```
 
-2. Add to `users_database.yml`:
+2. Add to `compose/core/authelia/config/users.yml`:
    ```yaml
    users:
      newuser:
@@ -120,17 +240,29 @@ access_control:
    docker compose restart authelia
    ```
 
+!!! info "File-Based Authentication"
+    Authelia uses **file-based** authentication backend. User changes require restarting the container. For production with frequent user changes, consider LDAP or other backends.
+
 ### Change User Password
 
-Generate new hash and update `users_database.yml`:
+1. Generate new hash:
+   ```bash
+   docker exec authelia authelia crypto hash generate argon2 --password 'new-password'
+   ```
 
-```bash
-docker exec authelia authelia crypto hash generate argon2 --password 'new-password'
-```
+2. Update `users.yml` with new hash
+
+3. Restart Authelia:
+   ```bash
+   docker compose restart authelia
+   ```
 
 ### Remove User
 
-Remove user entry from `users_database.yml` and restart Authelia.
+Remove user entry from `users.yml` and restart Authelia.
+
+!!! warning "User Data Persistence"
+    User accounts are stored in `users.yml`. User sessions, TOTP secrets, and WebAuthn devices are stored in **PostgreSQL**. Removing a user from `users.yml` doesn't automatically clean up their database entries.
 
 ## Two-Factor Authentication
 
@@ -211,15 +343,16 @@ access_control:
 
 ### Session Storage
 
-Authelia uses Redis (Redict) for session storage:
+Authelia uses **Redis (Redict)** for session storage. The Redis instance is dedicated to Authelia and runs on the `vnet-authelia` network:
 
 ```yaml
 session:
   redis:
-    host: redict
+    host: authelia-redict  # Service name
     port: 6379
-    database_index: 0
 ```
+
+The `authelia-redict` service extends the common `redict` base service with security hardening and resource limits.
 
 ### Session Timeout
 
@@ -263,7 +396,7 @@ Store credentials in Infisical.
 2. Enters email address
 3. Receives reset link via email
 4. Sets new password
-5. Password updated in `users_database.yml`
+5. Password hash updated in PostgreSQL database (user data persists across restarts)
 
 ## Monitoring
 
@@ -288,7 +421,7 @@ docker compose logs authelia | grep "failed"
 Check Redis for active sessions:
 
 ```bash
-docker exec redict redis-cli keys "authelia-session*"
+docker exec authelia-redict redis-cli keys "authelia-session*"
 ```
 
 ## Troubleshooting
@@ -298,7 +431,7 @@ docker exec redict redis-cli keys "authelia-session*"
 **Check credentials**:
 ```bash
 # Verify user exists
-docker exec authelia cat /config/users_database.yml | grep username
+docker exec authelia cat /config/users.yml | grep username
 ```
 
 **Verify password hash**:
@@ -335,7 +468,8 @@ Time must be synchronized (use NTP).
 
 Remove 2FA config from user's session in Redis:
 ```bash
-docker exec redict redis-cli del "authelia-session:username"
+# Connect to Authelia's Redis instance
+docker exec authelia-redict redis-cli del "authelia-session:username"
 ```
 
 ### Email Not Sending
@@ -424,19 +558,184 @@ authentication_backend:
     users_filter: (&({username_attribute}={input})(objectClass=person))
 ```
 
-### OpenID Connect
+### OpenID Connect (OIDC)
 
-Expose OIDC for service integration:
+Authelia provides **centralized OIDC/SSO** for applications, eliminating the need for separate authentication in each service.
 
+#### Centralized Client Management
+
+OIDC clients are managed using a **modular, file-based system** for maintainability:
+
+**Architecture**:
+```
+compose/core/authelia/config/
+├── configuration.yml          # Main config (references oidc-clients.yml)
+├── oidc-clients.yml          # Centralized client list
+├── oidc.d/                   # Individual client definitions
+│   ├── pgadmin               # pgAdmin OIDC client
+│   ├── vikunja               # Vikunja OIDC client
+│   └── <service>             # Additional clients
+└── users.yml                 # User database
+```
+
+**How it works**:
+
+1. Each service has its own file in `oidc.d/<service-name>`
+2. `oidc-clients.yml` includes all client files
+3. `configuration.yml` references `oidc-clients.yml`
+
+In `configuration.yml`:
 ```yaml
 identity_providers:
   oidc:
     clients:
-      - id: my-app
-        description: My Application
-        secret: ${OIDC_CLIENT_SECRET}
-        redirect_uris:
-          - https://my-app.yourdomain.com/callback
+      {{- fileContent "/config/oidc-clients.yml" | nindent 6 }}
+    cors:
+      allowed_origins:
+        - https://{{ env "DOMAINNAME"}}
+    hmac_secret: '{{ env "IDENTITY_PROVIDERS_OIDC_HMAC_SECRET" }}'
+    jwks:
+      - key: |
+          {{- env "IDENTITY_PROVIDERS_OIDC_JWKS" | nindent 9 }}
+    lifespans:
+      access_token: 1h
+      authorize_code: 1m
+      id_token: 1h
+      refresh_token: 90m
+```
+
+In `oidc-clients.yml`:
+```yaml
+# Infrastructure Services
+{{- fileContent "/config/oidc.d/pgadmin" | expandenv | nindent 0 }}
+
+# Productivity Services
+{{- fileContent "/config/oidc.d/vikunja" | expandenv | nindent 0 }}
+
+# Add new clients here
+```
+
+#### Adding a New OIDC Client
+
+Use the helper script for automated setup:
+
+```bash
+# Navigate to scripts directory
+cd compose/core/authelia/scripts
+
+# Run the helper script
+./add-oidc-client.sh <service-name> '<Display Name>' '<redirect-uri>'
+
+# Example:
+./add-oidc-client.sh nextcloud 'Nextcloud' 'https://cloud.yourdomain.com/apps/user_oidc/code'
+```
+
+The script will:
+1. Generate a secure random client secret
+2. Hash it with Authelia's argon2id hasher
+3. Create the client file in `oidc.d/<service>`
+4. Provide secrets to add to Infisical
+5. Show the line to add to `oidc-clients.yml`
+
+**Manual Process** (if script not available):
+
+1. **Generate and hash client secret**:
+   ```bash
+   # Generate secret
+   CLIENT_SECRET=$(openssl rand -base64 32)
+
+   # Hash with Authelia's tool
+   docker run --rm authelia/authelia:latest \
+     authelia crypto hash generate argon2 --password "$CLIENT_SECRET"
+   ```
+
+2. **Add secrets to Infisical**:
+   ```bash
+   OIDC_<SERVICE>_CLIENT_ID=<service-name>
+   OIDC_<SERVICE>_CLIENT_SECRET_DIGEST='$argon2id$v=19$...'
+   ```
+
+3. **Create client file** `compose/core/authelia/config/oidc.d/<service>`:
+   ```yaml
+   - authorization_policy: 'two_factor'
+     client_id: '${OIDC_<SERVICE>_CLIENT_ID}'
+     client_name: '<Service Display Name>'
+     client_secret: '${OIDC_<SERVICE>_CLIENT_SECRET_DIGEST}'
+     public: false
+     redirect_uris:
+       - 'https://<service>.${DOMAINNAME}/<callback-path>'
+     scopes:
+       - email
+       - openid
+       - profile
+     token_endpoint_auth_method: 'client_secret_post'
+     userinfo_signed_response_alg: 'none'
+   ```
+
+4. **Add to** `oidc-clients.yml`:
+   ```yaml
+   # Service Name - Description
+   {{- fileContent "/config/oidc.d/<service>" | expandenv | nindent 0 }}
+   ```
+
+5. **Restart Authelia**:
+   ```bash
+   docker compose restart authelia
+   ```
+
+#### OIDC Client Configuration Options
+
+**Authorization Policies**:
+- `two_factor`: Requires 2FA (recommended for sensitive services)
+- `one_factor`: Username/password only
+
+**Client Types**:
+- `public: false`: Confidential client with secret (most services)
+- `public: true`: Public client without secret (SPAs, mobile apps)
+
+**Token Endpoint Auth Methods**:
+- `client_secret_post`: Secret in POST body (recommended)
+- `client_secret_basic`: Secret in HTTP Basic Auth header
+
+**Common Scopes**:
+- `openid`: Required for OIDC
+- `email`: User's email address
+- `profile`: User's display name
+- `groups`: User's group memberships
+
+#### OIDC Discovery Endpoints
+
+Configure services with these endpoints:
+
+- **Discovery**: `https://auth.yourdomain.com/.well-known/openid-configuration`
+- **Authorization**: `https://auth.yourdomain.com/api/oidc/authorization`
+- **Token**: `https://auth.yourdomain.com/api/oidc/token`
+- **Userinfo**: `https://auth.yourdomain.com/api/oidc/userinfo`
+- **JWKS**: `https://auth.yourdomain.com/jwks.json`
+
+#### Troubleshooting OIDC
+
+**Client not appearing**:
+```bash
+# Verify configuration syntax
+docker compose config | grep -A 20 "identity_providers"
+
+# Check secrets loaded
+docker compose exec authelia env | grep OIDC_
+
+# Check logs for errors
+docker compose logs authelia | grep -i oidc
+```
+
+**Authentication failures**:
+- Verify redirect URI matches exactly (including trailing slash)
+- Check authorization policy requirements (one_factor vs two_factor)
+- Verify client secret was hashed correctly (never use plain text)
+- Check CORS settings match service domain
+
+**Test OIDC discovery**:
+```bash
+curl https://auth.yourdomain.com/.well-known/openid-configuration | jq
 ```
 
 ### Rate Limiting
@@ -450,8 +749,84 @@ regulation:
   ban_time: 5m
 ```
 
+## Required Secrets in Infisical
+
+Authelia requires the following secrets to be configured in Infisical vault:
+
+### Core Secrets
+
+```bash
+# Session encryption
+AUTHELIA_SESSION_SECRET           # Random string (64+ chars)
+
+# Database encryption key
+AUTHELIA_STORAGE_ENCRYPTION_KEY   # Random string (64+ chars)
+
+# Database credentials
+AUTHELIA_DB_NAME                  # Database name (default: authelia_db)
+AUTHELIA_DB_USER                  # Database user (default: authelia)
+AUTHELIA_DB_PASS                  # Database password
+
+# Password reset JWT secret
+AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET  # Random string (64+ chars)
+```
+
+### OIDC Secrets
+
+```bash
+# OIDC provider secrets
+IDENTITY_PROVIDERS_OIDC_HMAC_SECRET  # Random string (64+ chars)
+IDENTITY_PROVIDERS_OIDC_JWKS         # RSA private key in PEM format
+```
+
+**Generate OIDC JWKS**:
+```bash
+# Generate RSA private key
+docker run --rm authelia/authelia:latest \
+  authelia crypto certificate rsa generate --bits 4096
+```
+
+### SMTP Secrets (Optional)
+
+For password reset and notifications:
+
+```bash
+SMTP_SERVER        # SMTP server address
+SMTP_PORT          # SMTP port (587 for TLS, 465 for SSL)
+SMTP_USERNAME      # SMTP authentication username
+SMTP_PASSWORD      # SMTP authentication password
+```
+
+### OIDC Client Secrets
+
+For each OIDC client, add:
+
+```bash
+# Pattern: OIDC_<SERVICE>_CLIENT_ID and OIDC_<SERVICE>_CLIENT_SECRET_DIGEST
+OIDC_PGADMIN_CLIENT_ID='pgadmin'
+OIDC_PGADMIN_CLIENT_SECRET_DIGEST='$argon2id$v=19$...'
+
+OIDC_VIKUNJA_CLIENT_ID='vikunja'
+OIDC_VIKUNJA_CLIENT_SECRET_DIGEST='$argon2id$v=19$...'
+```
+
+!!! tip "Generating Secrets"
+    Use Authelia's built-in tools for generating and hashing secrets:
+
+    ```bash
+    # Generate random secret
+    docker run --rm authelia/authelia:latest \
+      authelia crypto rand --length 64 --charset alphanumeric
+
+    # Hash password/secret with argon2id
+    docker run --rm authelia/authelia:latest \
+      authelia crypto hash generate argon2 --password 'your-secret-here'
+    ```
+
 ## See Also
 
 - [Traefik](traefik.md) - Reverse proxy integration
+- [CrowdSec](crowdsec.md) - Intrusion prevention system
+- [OIDC Management Guide](https://github.com/esoso/omakase/blob/main/.github/AUTHELIA_OIDC_MANAGEMENT.md) - Detailed OIDC setup
 - [Security Best Practices](../security/best-practices.md) - Security guidelines
 - [User Management](../operations/maintenance.md) - User maintenance
