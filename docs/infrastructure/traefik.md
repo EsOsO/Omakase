@@ -15,47 +15,86 @@ Traefik provides:
 
 ### Core Configuration
 
-Located in `compose/traefik/config/traefik.yml`:
+Traefik is configured via command-line arguments in `compose/core/traefik/compose.yaml`. Key configuration includes:
 
+**Entry Points:**
 ```yaml
-entryPoints:
-  web:
-    address: ":80"
-    http:
-      redirections:
-        entryPoint:
-          to: websecure
-          scheme: https
-
-  websecure:
-    address: ":443"
-    http:
-      tls:
-        certResolver: letsencrypt
-
-certificatesResolvers:
-  letsencrypt:
-    acme:
-      email: ${ACME_EMAIL}
-      storage: /letsencrypt/acme.json
-      httpChallenge:
-        entryPoint: web
+'--entrypoints.web.address=:80'
+'--entrypoints.web.asDefault=true'
+'--entryPoints.web.forwardedHeaders.trustedIPs=${TRAEFIK_TRUSTED_IPS}'
+'--entryPoints.web.proxyProtocol.trustedIPs=${TRAEFIK_TRUSTED_IPS}'
 ```
+
+**Additional Entry Points** (for specific services):
+- `metrics` (8899) - Prometheus metrics
+- `deluge` (7623/tcp) - Deluge torrent client
+- `jellyfin-svc` (1900/udp) - Jellyfin service discovery
+- `jellyfin-clt` (7359/udp) - Jellyfin client discovery
+- `unifi-stun` (3487/udp) - UniFi STUN
+- `unifi-speed` (6789/udp) - UniFi speed test
+- `unifi-discovery` (10001/udp) - UniFi device discovery
+
+**Docker Provider:**
+```yaml
+'--providers.docker.endpoint=tcp://cetusguard:2375'  # Via Cetusguard proxy
+'--providers.docker.exposedByDefault=false'          # Explicit opt-in
+'--providers.docker.network=vnet-ingress'            # Default network
+```
+
+**File Provider:**
+```yaml
+'--providers.file.directory=/rules'  # Dynamic configuration files
+```
+
+!!! info "No traefik.yml File"
+    Unlike typical Traefik setups, this configuration uses command-line arguments instead of a `traefik.yml` file. All static configuration is defined in the compose file's `command:` section.
 
 ### Dynamic Configuration
 
-Located in `compose/traefik/config/dynamic/`:
+Located in `compose/core/traefik/rules/`:
 
-**Middleware** (`middlewares.yml`):
+**Middleware Chain** (`chain-authelia.yml`):
 ```yaml
 http:
   middlewares:
     chain-authelia:
       chain:
         middlewares:
-          - crowdsec
-          - authelia
-          - security-headers
+          - middlewares-rate-limit      # Rate limiting
+          - middlewares-secure-headers  # Security headers
+          - middlewares-authelia        # SSO authentication
+          - middlewares-compress        # Gzip compression
+          - crowdsec                    # IPS protection
+```
+
+**CrowdSec Integration** (`crowdsec.yml`):
+```yaml
+http:
+  middlewares:
+    crowdsec:
+      plugin:
+        crowdsec-bouncer:
+          enabled: true
+          crowdseclapihost: 'crowdsec:8080'
+          crowdsecappsechost: 'crowdsec:7422'
+          rediscacheenabled: true
+          rediscachehost: 'traefik-redict:6379'
+```
+
+**Security Headers** (`middlewares-secure-headers.yml`):
+```yaml
+http:
+  middlewares:
+    middlewares-secure-headers:
+      headers:
+        browserXssFilter: true
+        contentTypeNosniff: true
+        customFrameOptionsValue: SAMEORIGIN
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 15552000
+        referrerPolicy: same-origin
+        permissionsPolicy: camera=(), microphone=(self), geolocation=()
 ```
 
 ## Service Integration
@@ -69,14 +108,19 @@ services:
   myservice:
     image: myapp:latest
     networks:
-      - ingress
+      - vnet-ingress  # Must be on the ingress network
     labels:
       - traefik.enable=true
       - traefik.http.routers.myservice.rule=Host(`myservice.${DOMAINNAME}`)
-      - traefik.http.routers.myservice.entrypoints=websecure
-      - traefik.http.routers.myservice.tls.certresolver=letsencrypt
+      - traefik.http.routers.myservice.entrypoints=web
       - traefik.http.services.myservice.loadbalancer.server.port=8080
 ```
+
+!!! warning "Network Requirement"
+    Services must be on the `vnet-ingress` network to be accessible via Traefik. This is Omakase's shared network for public-facing services.
+
+!!! info "No SSL Configuration in Labels"
+    Unlike typical Traefik setups, **this configuration does not use Let's Encrypt directly**. SSL termination is handled upstream (e.g., HAProxy, Cloudflare, or external load balancer). You don't need `tls.certresolver` labels.
 
 ### Service with Authentication
 
@@ -86,11 +130,17 @@ Protect service with Authelia SSO:
 labels:
   - traefik.enable=true
   - traefik.http.routers.myservice.rule=Host(`myservice.${DOMAINNAME}`)
-  - traefik.http.routers.myservice.entrypoints=websecure
-  - traefik.http.routers.myservice.tls.certresolver=letsencrypt
+  - traefik.http.routers.myservice.entrypoints=web
   - traefik.http.routers.myservice.middlewares=chain-authelia@file
   - traefik.http.services.myservice.loadbalancer.server.port=8080
 ```
+
+The `chain-authelia@file` middleware applies:
+- Rate limiting
+- Security headers
+- Authelia SSO authentication
+- Gzip compression
+- CrowdSec IPS protection
 
 ### Service with Custom Domain
 
@@ -185,50 +235,35 @@ labels:
   - traefik.http.middlewares.redirect-https.redirectscheme.permanent=true
 ```
 
-## SSL Certificates
+## SSL/TLS Certificates
 
-### Let's Encrypt HTTP Challenge
+!!! info "Upstream SSL Termination"
+    **Omakase's Traefik does not handle SSL certificates directly**. This is by design for the reference architecture where SSL termination happens upstream (e.g., OPNSense HAProxy, Cloudflare, cloud load balancer).
 
-Default method (requires port 80 accessible):
+### Architecture Options
 
-```yaml
-certificatesResolvers:
-  letsencrypt:
-    acme:
-      email: ${ACME_EMAIL}
-      storage: /letsencrypt/acme.json
-      httpChallenge:
-        entryPoint: web
+**Option 1: Upstream SSL Termination** (Default/Recommended)
+```
+Internet → [Firewall/HAProxy with SSL] → Traefik (HTTP only) → Services
 ```
 
-### DNS Challenge
+- SSL certificates managed at firewall/load balancer level
+- Traefik receives traffic on port 80 (HTTP)
+- Internal communication uses HTTP or can be encrypted separately
+- `TRAEFIK_TRUSTED_IPS` validates requests come from trusted proxy
 
-For wildcard certificates:
-
-```yaml
-certificatesResolvers:
-  letsencrypt:
-    acme:
-      email: ${ACME_EMAIL}
-      storage: /letsencrypt/acme.json
-      dnsChallenge:
-        provider: cloudflare
-        resolvers:
-          - "1.1.1.1:53"
-          - "8.8.8.8:53"
+**Option 2: Direct SSL with Let's Encrypt** (Requires modification)
+```
+Internet → Traefik (HTTPS) → Services
 ```
 
-### Custom Certificates
+To enable Let's Encrypt, you would need to:
+1. Add `websecure` entrypoint (port 443)
+2. Add `certificatesResolvers` configuration
+3. Update service labels to use `entrypoints=websecure` and `tls.certresolver=letsencrypt`
+4. Expose port 443 in compose file
 
-Mount custom certificates:
-
-```yaml
-volumes:
-  - ./certs:/certs
-labels:
-  - traefik.http.routers.myservice.tls.domains[0].main=mydomain.com
-  - traefik.http.routers.myservice.tls.domains[0].sans=*.mydomain.com
-```
+This is not the default configuration but can be adapted for simpler deployments.
 
 ## Dashboard
 
@@ -255,20 +290,41 @@ docker compose logs -f traefik
 ### Check Routes
 
 ```bash
-# List all HTTP routers
-docker exec traefik traefik healthcheck
+# Health check
+docker exec traefik traefik healthcheck --ping
 
-# View configuration
-docker exec traefik cat /etc/traefik/traefik.yml
+# View running command/configuration
+docker inspect traefik | jq '.[0].Args'
+
+# View dynamic configuration files
+docker exec traefik ls -la /rules/
+docker exec traefik cat /rules/chain-authelia.yml
 ```
+
+### Docker API Access
+
+!!! important "Cetusguard Proxy"
+    Traefik **does not** connect to the Docker socket directly. Instead, it uses the Cetusguard proxy for security:
+
+    ```yaml
+    '--providers.docker.endpoint=tcp://cetusguard:2375'
+    ```
+
+    This provides:
+    - Read-only access to Docker API
+    - No container manipulation capabilities
+    - Network isolation from host Docker socket
+    - Audit logging of API requests
+
+See [Cetusguard documentation](cetusguard.md) for more details.
 
 ### Test Routing
 
 ```bash
-# Test specific host
+# Test specific host (internal)
 curl -H "Host: myservice.yourdomain.com" http://localhost
 
-# With SSL
+# Test from external (if SSL upstream)
 curl https://myservice.yourdomain.com
 ```
 
@@ -286,27 +342,32 @@ docker compose logs traefik | grep myservice
 docker inspect myservice | jq '.[0].Config.Labels'
 ```
 
-**Check service on ingress network**:
+**Check service on vnet-ingress network**:
 ```bash
-docker network inspect ingress | jq '.[]Containers'
+docker network inspect vnet-ingress | jq '.[].Containers'
 ```
 
-### SSL Certificate Issues
-
-**Certificate not issued**:
+**Verify Traefik can reach Docker API**:
 ```bash
-# Check ACME logs
-docker compose logs traefik | grep acme
+# Check Cetusguard is running
+docker compose ps cetusguard
 
-# Verify port 80 accessible externally
-curl http://yourdomain.com/.well-known/acme-challenge/test
+# Check Traefik can communicate with Cetusguard
+docker exec traefik ping -c 2 cetusguard
 ```
 
-**Rate limits**: Let's Encrypt has rate limits. Wait if hit.
+### Upstream SSL/Proxy Issues
 
-**Check certificate storage**:
+**Trusted IPs not configured**:
 ```bash
-docker exec traefik cat /letsencrypt/acme.json | jq
+# Verify TRAEFIK_TRUSTED_IPS is set correctly
+docker inspect traefik | jq '.[0].Args[] | select(contains("trustedIPs"))'
+```
+
+**Check forwarded headers**:
+```bash
+# Enable access logs temporarily to see headers
+docker compose logs traefik | grep "User-Agent"
 ```
 
 ### Wrong Backend
@@ -383,13 +444,16 @@ labels:
 
 ## Best Practices
 
-1. **Always use middleware chains** - Apply security headers, Authelia, CrowdSec
-2. **Pin Traefik version** - Don't use `:latest` tag
-3. **Monitor certificate renewal** - Check ACME logs regularly
-4. **Use specific network** - Always specify `traefik.docker.network=ingress`
+1. **Always use middleware chains** - Apply the full `chain-authelia@file` for protected services
+2. **Pin Traefik version** - Don't use `:latest` tag (Renovate manages updates)
+3. **Use vnet-ingress network** - All public services must be on this network
+4. **Specify network in labels** - When service is on multiple networks: `traefik.docker.network=vnet-ingress`
 5. **Test in development** - Use `compose.dev.yaml` for testing routing
-6. **Document custom middleware** - Keep middleware definitions clear
-7. **Backup ACME storage** - Include `/letsencrypt/acme.json` in backups
+6. **Monitor CrowdSec** - Check that CrowdSec bouncer is working via dashboard
+7. **Verify trusted IPs** - Ensure `TRAEFIK_TRUSTED_IPS` includes all upstream proxies
+8. **Document custom middleware** - Keep middleware definitions in `/rules/` directory
+9. **Never expose Docker socket** - Always use Cetusguard proxy
+10. **Check Redis cache** - CrowdSec bouncer uses Redis for performance
 
 ## Performance Tuning
 
