@@ -31,35 +31,97 @@ CrowdSec provides:
 
 ### CrowdSec Agent
 
-Located in `compose/crowdsec/compose.yaml`:
+Located in `compose/core/traefik/compose.yaml`:
 
 ```yaml
 services:
   crowdsec:
-    image: crowdsecurity/crowdsec:latest
+    image: ghcr.io/crowdsecurity/crowdsec:v1.7.3
+    container_name: crowdsec
     environment:
-      COLLECTIONS: crowdsecurity/traefik crowdsecurity/http-cve
-      GID: "${GID-1000}"
+      BOUNCER_KEY_TRAEFIK: ${TRAEFIK_CROWDSEC_BOUNCER}
+      COLLECTIONS: |
+        crowdsecurity/appsec-generic-rules
+        crowdsecurity/appsec-virtual-patching
+        crowdsecurity/traefik
+        Dominic-Wagner/vaultwarden
+        LePresidente/authelia
+        openappsec/openappsec
+      CROWDSEC_CTI_API_KEY: ${CROWDSEC_CTI_API_KEY}
+      DOCKER_HOST: "tcp://cetusguard:2375"
+      TELEGRAM_BOT_ID: ${TELEGRAM_BOT_ID}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+    networks:
+      - vnet-traefik
+      - vnet-socket
     volumes:
-      - ./config:/etc/crowdsec
-      - crowdsec_data:/var/lib/crowdsec/data
-      - traefik_logs:/var/log/traefik:ro
+      - ./crowdsec/config.yaml:/etc/crowdsec/config.yaml.local:ro
+      - ./crowdsec/profiles.yaml:/etc/crowdsec/profiles.yaml.local:ro
+      - ./crowdsec/telegram.yaml:/etc/crowdsec/notifications/telegram.yaml:ro
+      - ./crowdsec/ip-whitelist.yaml:/etc/crowdsec/parsers/s02-enrich/ip-whitelist.yaml:ro
+      - ./crowdsec/acquis.d:/etc/crowdsec/acquis.d:ro
+      - ${DATA_DIR}/traefik/crowdsec/data:/var/lib/crowdsec/data
+      - ${DATA_DIR}/traefik/crowdsec/etc:/etc/crowdsec
+```
+
+!!! info "Key Configuration Features"
+    - **Docker Label Parsing**: Uses `use_container_labels: true` to read logs directly from containers
+    - **AppSec WAF**: Includes Application Security (AppSec) with virtual patching
+    - **CTI Integration**: CrowdSec Cyber Threat Intelligence API for enhanced threat detection
+    - **Cetusguard Proxy**: Accesses Docker API via secure proxy
+    - **Telegram Notifications**: Real-time alerts with CTI scores
+    - **Custom Profiles**: Background noise score-based ban duration
+
+### Data Sources
+
+**Docker Container Logs** (`acquis.d/docker.yaml`):
+```yaml
+source: docker
+use_container_labels: true  # Reads logs from containers with crowdsec.enable label
+check_interval: 10s
+```
+
+Containers are monitored when labeled:
+```yaml
+labels:
+  crowdsec.enable: true
+  crowdsec.labels.type: traefik
+```
+
+**AppSec WAF** (`acquis.d/appsec.yaml`):
+```yaml
+listen_addr: 0.0.0.0:7422
+appsec_config: crowdsecurity/virtual-patching
+name: appsecComponent
+source: appsec
 ```
 
 ### Traefik Bouncer
 
-Configured via Traefik middleware:
+Configured via Traefik middleware in `compose/core/traefik/rules/crowdsec.yml`:
 
 ```yaml
 http:
   middlewares:
     crowdsec:
       plugin:
-        bouncer:
+        crowdsec-bouncer:
           enabled: true
-          crowdseclapikey: ${CROWDSEC_BOUNCER_API_KEY}
-          crowdseclapiurl: http://crowdsec:8080
+          crowdseclapihost: 'crowdsec:8080'
+          crowdsecappsechost: 'crowdsec:7422'  # AppSec WAF
+          crowdseclapikey: '{{ env "BOUNCER_KEY_TRAEFIK" }}'
+          rediscacheenabled: true
+          rediscachehost: 'traefik-redict:6379'
+          clienttrustedips:
+            - "10.0.0.0/8"
+            - "172.16.0.0/12"
+            - "192.168.0.0/16"
+          forwardedheaderstrustedips:
+            - "10.0.1.1"  # HAProxy upstream
 ```
+
+!!! important "Redis Cache"
+    The bouncer uses Redis (Redict) for caching decisions, significantly improving performance by reducing API calls to CrowdSec.
 
 Applied to all services via middleware chain:
 
@@ -67,6 +129,8 @@ Applied to all services via middleware chain:
 labels:
   - traefik.http.routers.myservice.middlewares=chain-authelia@file
 ```
+
+The `chain-authelia` middleware includes CrowdSec protection automatically.
 
 ## Collections
 
@@ -87,12 +151,23 @@ docker exec crowdsec cscli collections install crowdsecurity/whitelist-good-acto
 docker exec crowdsec cscli collections upgrade --all
 ```
 
-### Recommended Collections
+### Pre-installed Collections
 
-- `crowdsecurity/traefik` - Traefik-specific attacks
+These collections are automatically installed via environment variables:
+
+- `crowdsecurity/appsec-generic-rules` - Generic AppSec WAF rules
+- `crowdsecurity/appsec-virtual-patching` - Virtual patching for known vulnerabilities
+- `crowdsecurity/traefik` - Traefik-specific attack patterns
+- `Dominic-Wagner/vaultwarden` - Vaultwarden protection
+- `LePresidente/authelia` - Authelia SSO protection
+- `openappsec/openappsec` - OpenAppSec integration
+
+### Additional Recommended Collections
+
 - `crowdsecurity/http-cve` - HTTP CVE exploits
 - `crowdsecurity/base-http-scenarios` - Common HTTP attacks
 - `crowdsecurity/whitelist-good-actors` - Whitelist known good bots
+- `crowdsecurity/wordpress` - WordPress protection (if applicable)
 
 ## Decisions Management
 
@@ -184,19 +259,105 @@ docker exec crowdsec cscli decisions add --range 192.168.1.0/24 --type whitelist
 
 ### Whitelist Configuration
 
-In `compose/crowdsec/config/parsers/s02-enrich/whitelist.yaml`:
+In `compose/core/traefik/crowdsec/ip-whitelist.yaml`:
 
 ```yaml
-name: crowdsecurity/whitelists
-description: "Whitelist trusted IPs"
+name: my/whitelists
+description: "Custom whitelist"
 whitelist:
-  reason: "Trusted network"
-  ip:
-    - "192.168.1.0/24"
-    - "10.0.0.0/8"
+  reason: "custom whitelist"
   cidr:
-    - "192.168.0.0/16"
+    - "192.168.0.0/16"  # Private networks
+    - "172.16.0.0/12"
+    - "10.0.0.0/8"
 ```
+
+!!! warning "RFC 1918 Private Networks"
+    By default, all RFC 1918 private networks are whitelisted. Add your public IPs if needed:
+    ```yaml
+    - "203.0.113.0/24"  # Your public IP range
+    ```
+
+## Cyber Threat Intelligence (CTI)
+
+### CTI API Integration
+
+CrowdSec integrates with the CTI API for enhanced threat detection (`config.yaml`):
+
+```yaml
+api:
+  cti:
+    key: ${CROWDSEC_CTI_API_KEY}
+    cache_timeout: 60m
+    cache_size: 50
+    enabled: true
+    log_level: trace
+```
+
+CTI provides:
+- **Background Noise Score**: Measures how often an IP attacks globally
+- **False Positive Detection**: Identifies legitimate services misidentified as threats
+- **Threat Classifications**: Categorizes attack types
+- **Attack History**: Global attack statistics per IP
+
+### Custom Profiles with CTI
+
+Ban duration based on CTI background noise score (`profiles.yaml`):
+
+```yaml
+name: bn_score
+filters:
+  - Alert.Remediation == true && Alert.GetScope() == "Ip"
+  - CrowdsecCTI(Alert.GetValue()).GetBackgroundNoiseScore() > 0
+  - !CrowdsecCTI(Alert.GetValue()).IsFalsePositive()
+decisions:
+  - type: ban
+    duration: 12h
+duration_expr: "Sprintf('%dm', (240 + (120 * CrowdsecCTI(Alert.GetValue()).GetBackgroundNoiseScore())))"
+# Formula: 4 hours + 2 hours per background noise score point
+# Max score: 10 = up to 24 hours ban
+notifications:
+  - telegram
+```
+
+**Default IP remediation** (fallback):
+```yaml
+name: default_ip_remediation
+decisions:
+  - type: ban
+    duration: 12h
+duration_expr: "Sprintf('%dh', (GetDecisionsCount(Alert.GetValue()) + 1) * 12)"
+# Progressive bans: 12h, 24h, 36h, etc.
+notifications:
+  - telegram
+```
+
+## Notifications
+
+### Telegram Alerts
+
+Real-time notifications configured in `telegram.yaml`:
+
+```yaml
+type: http
+name: telegram
+url: https://api.telegram.org/bot${TELEGRAM_BOT_ID}/sendMessage
+```
+
+**Alert format includes**:
+- Banned IP address
+- Action type and duration
+- Triggering scenario
+- CTI scores (overall, last day, week, month)
+- Threat classifications
+- Links to Shodan and CrowdSec CTI
+
+**Setup**:
+1. Create Telegram bot via [@BotFather](https://t.me/botfather)
+2. Get bot token (TELEGRAM_BOT_ID)
+3. Get chat ID (TELEGRAM_CHAT_ID)
+4. Add to Infisical secrets
+5. Restart CrowdSec
 
 ## Hub Management
 
@@ -236,6 +397,52 @@ docker exec crowdsec cscli parsers install crowdsecurity/nginx-logs
 
 # List parsers
 docker exec crowdsec cscli parsers list
+```
+
+## Application Security (AppSec) WAF
+
+### AppSec Component
+
+CrowdSec includes a Web Application Firewall (WAF) with virtual patching:
+
+**Configuration** (`acquis.d/appsec.yaml`):
+```yaml
+listen_addr: 0.0.0.0:7422
+appsec_config: crowdsecurity/virtual-patching
+name: appsecComponent
+source: appsec
+```
+
+**Integration with Traefik**:
+```yaml
+crowdsecappsechost: 'crowdsec:7422'
+crowdsecappsecenabled: true
+```
+
+### Virtual Patching
+
+AppSec provides protection against:
+- **SQL Injection** - Database query manipulation
+- **XSS (Cross-Site Scripting)** - JavaScript injection
+- **Path Traversal** - Directory traversal attacks
+- **Command Injection** - OS command execution
+- **SSRF (Server-Side Request Forgery)** - Internal service access
+- **Known CVEs** - Exploits for known vulnerabilities
+
+Virtual patches are applied automatically without code changes, protecting against:
+- Log4Shell
+- Spring4Shell
+- ProxyShell
+- And many more...
+
+### AppSec Metrics
+
+```bash
+# View AppSec metrics
+docker exec crowdsec cscli metrics show appsec
+
+# View blocked AppSec attacks
+docker exec crowdsec cscli decisions list --origin cscli
 ```
 
 ## Monitoring
@@ -354,19 +561,35 @@ docker exec crowdsec cscli decisions delete --ip YOUR_IP
 ```bash
 # View parsed logs
 docker exec crowdsec cscli metrics show parsers
+
+# Check acquisition sources
+docker exec crowdsec cscli metrics show acquisition
 ```
 
-**Verify log access**:
+**Verify Docker API access via Cetusguard**:
 ```bash
-# Check Traefik logs are readable
-docker exec crowdsec ls -la /var/log/traefik
-docker exec crowdsec cat /var/log/traefik/access.log | head
+# Check CrowdSec can reach Docker API
+docker exec crowdsec wget -O- http://cetusguard:2375/containers/json | jq
+
+# Verify containers are labeled correctly
+docker inspect traefik | jq '.[0].Config.Labels' | grep crowdsec
+```
+
+**Check container labels**:
+Containers must have these labels to be monitored:
+```yaml
+labels:
+  crowdsec.enable: true
+  crowdsec.labels.type: traefik  # or other service type
 ```
 
 **Test scenarios**:
 ```bash
-# Trigger test alert
+# Trigger test alert (path traversal)
 curl https://yourdomain.com/../../etc/passwd
+
+# Test AppSec WAF (SQL injection)
+curl "https://yourdomain.com/?id=1' OR '1'='1"
 ```
 
 ### Legitimate User Blocked
@@ -425,13 +648,23 @@ docker compose restart crowdsec
 
 ## Security Best Practices
 
-1. **Keep collections updated** - Run `cscli collections upgrade --all` regularly
-2. **Monitor alerts** - Review alerts weekly
-3. **Whitelist trusted IPs** - Prevent blocking your own access
-4. **Enroll in CAPI** - Benefit from community intelligence
-5. **Test blocking** - Verify decisions are enforced
-6. **Review false positives** - Adjust scenarios if needed
-7. **Backup configuration** - Include CrowdSec config in backups
+1. **Keep collections updated** - Run `cscli collections upgrade --all` regularly (Renovate handles Docker image updates)
+2. **Monitor Telegram alerts** - Real-time notifications keep you informed
+3. **Whitelist trusted IPs** - Add your public IPs to `ip-whitelist.yaml`
+4. **Review CTI scores** - High background noise scores = serious threats
+5. **Test blocking** - Verify decisions are enforced via Traefik bouncer
+6. **Monitor AppSec** - Check WAF metrics for blocked attacks
+7. **Check Redis cache** - Ensure bouncer cache is working for performance
+8. **Enroll in CAPI** - Benefit from global community intelligence
+9. **Review profiles** - Adjust ban durations based on your threat model
+10. **Backup configuration** - CrowdSec config and data are in `${DATA_DIR}/traefik/crowdsec`
+
+### Required Secrets in Infisical
+
+- `TRAEFIK_CROWDSEC_BOUNCER` - Bouncer API key
+- `CROWDSEC_CTI_API_KEY` - CTI API key (from console.crowdsec.net)
+- `TELEGRAM_BOT_ID` - Telegram bot token
+- `TELEGRAM_CHAT_ID` - Telegram chat ID for notifications
 
 ## Performance Tuning
 
