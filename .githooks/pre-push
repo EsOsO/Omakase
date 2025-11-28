@@ -1,0 +1,74 @@
+#!/bin/bash
+# Pre-push hook to prevent accidental direct pushes to main branch
+# This hook reminds you to use the PR workflow instead
+
+# ANSI color codes
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Get the current branch
+current_branch=$(git symbolic-ref --short HEAD)
+
+# Get remote and branch being pushed
+while read local_ref local_sha remote_ref remote_sha
+do
+    # Extract branch name from ref (refs/heads/main -> main)
+    remote_branch=$(echo "$remote_ref" | sed 's|refs/heads/||')
+
+    # Check if pushing to main
+    if [ "$remote_branch" = "main" ]; then
+        echo ""
+        echo -e "${RED}╔═══════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${RED}║                    ⚠️  WARNING  ⚠️                       ║${NC}"
+        echo -e "${RED}╚═══════════════════════════════════════════════════════════╝${NC}"
+        echo ""
+        echo -e "${YELLOW}You are about to push directly to the 'main' branch!${NC}"
+        echo ""
+        echo -e "${BLUE}📋 Recommended workflow:${NC}"
+        echo ""
+        echo -e "  1. Create a feature branch:"
+        echo -e "     ${GREEN}git checkout -b feat/your-feature${NC}"
+        echo ""
+        echo -e "  2. Make your changes and commit"
+        echo ""
+        echo -e "  3. Push the feature branch:"
+        echo -e "     ${GREEN}git push -u origin feat/your-feature${NC}"
+        echo ""
+        echo -e "  4. Create a PR:"
+        echo -e "     ${GREEN}gh pr create --title \"...\" --body \"...\"${NC}"
+        echo ""
+        echo -e "  5. Review, approve, and merge:"
+        echo -e "     ${GREEN}gh pr merge --squash --delete-branch${NC}"
+        echo ""
+        echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
+        echo ""
+
+        # If this is a bot or automated commit with [skip ci], allow it
+        if git log -1 --pretty=%B | grep -q "\[skip ci\]"; then
+            echo -e "${GREEN}✓ Automated commit detected [skip ci] - allowing push${NC}"
+            echo ""
+            exit 0
+        fi
+
+        # Ask for confirmation
+        echo -e "${YELLOW}Are you sure you want to push to main?${NC}"
+        echo -e "Type 'yes' to proceed, or press Ctrl+C to cancel: "
+        read -r response
+
+        if [ "$response" != "yes" ]; then
+            echo ""
+            echo -e "${RED}✗ Push cancelled.${NC}"
+            echo ""
+            exit 1
+        fi
+
+        echo ""
+        echo -e "${YELLOW}⚠️  Proceeding with push to main...${NC}"
+        echo ""
+    fi
+done
+
+exit 0
