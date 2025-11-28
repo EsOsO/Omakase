@@ -8,7 +8,7 @@ Omakase uses a multi-layered network architecture for security and isolation.
 
 Two shared networks for cross-service communication:
 
-**ingress** (192.168.90.0/24):
+**vnet-ingress** (192.168.90.0/24):
 - Public-facing services
 - Connected to Traefik reverse proxy
 - Protected by Authelia SSO
@@ -17,7 +17,7 @@ Two shared networks for cross-service communication:
 **vnet-socket** (192.168.91.0/24):
 - Docker API access
 - Connected through Cetusguard proxy
-- Read-only API access
+- Access via Cetusguard proxy
 - Used by monitoring tools (Dozzle, Portainer, Homepage)
 
 ### Service-Specific Networks
@@ -34,32 +34,28 @@ Each service has its own isolated network: `vnet-<service>`
 
 ### Defining Networks
 
-In `compose.yaml`:
+Shared networks are defined in service compose files (e.g., `compose/core/traefik/compose.yaml`):
 
 ```yaml
 networks:
-  ingress:
-    name: ingress
+  vnet-ingress:
+    name: vnet-ingress
     driver: bridge
     ipam:
-      driver: default
       config:
         - subnet: 192.168.90.0/24
-          gateway: 192.168.90.1
 
   vnet-socket:
     name: vnet-socket
     driver: bridge
     ipam:
-      driver: default
       config:
         - subnet: 192.168.91.0/24
-          gateway: 192.168.91.1
 ```
 
 ### Service Network
 
-Each service defines its own network:
+Each service defines its own isolated network with small subnet sizes:
 
 ```yaml
 networks:
@@ -67,11 +63,14 @@ networks:
     name: vnet-myservice
     driver: bridge
     ipam:
-      driver: default
       config:
-        - subnet: 192.168.92.0/24
-          gateway: 192.168.92.1
+        - subnet: 192.168.X.Y/29  # /29 = 8 IPs, /28 = 16 IPs
 ```
+
+!!! info "Subnet Sizing"
+    - **Shared networks**: /24 (254 hosts) for vnet-ingress and vnet-socket
+    - **Service networks**: /29 (6 usable IPs) or /28 (14 usable IPs)
+    - Small subnets minimize attack surface and resource usage
 
 ### Subnet Allocation
 
@@ -80,12 +79,25 @@ Check allocated subnets:
 make network
 ```
 
-**Reserved ranges**:
-- `192.168.90.0/24` - ingress
-- `192.168.91.0/24` - vnet-socket
-- `192.168.92.0/24` - vnet-authelia
-- `192.168.93.0/24` - vnet-traefik
-- Continue incrementing for new services
+**Allocation Strategy**:
+
+- **Shared networks** (large /24 subnets):
+  - `192.168.90.0/24` - vnet-ingress
+  - `192.168.91.0/24` - vnet-socket
+
+- **Service networks** (small /29 or /28 subnets):
+  - `192.168.10.0/29` - vnet-traefik
+  - `192.168.20.16/29` - vnet-authelia
+  - `192.168.20.32/29` - vnet-immich
+  - `192.168.21.16/28` - vnet-local-ai
+
+**Subnet Size Guidelines**:
+- `/29` (6 usable IPs): Simple service with 1-2 containers
+- `/28` (14 usable IPs): Service with multiple containers (3+)
+- `/24` (254 usable IPs): Shared networks only
+
+!!! warning "Non-Sequential Allocation"
+    Service subnets are **not** allocated sequentially. Always check `make network` before adding a new service to avoid conflicts.
 
 ## Service Network Patterns
 
@@ -97,19 +109,22 @@ Service with web interface:
 services:
   myservice:
     networks:
-      - ingress        # For Traefik access
+      - vnet-ingress   # For Traefik access
       - vnet-myservice # Service isolation
     labels:
       - traefik.enable=true
-      - traefik.docker.network=ingress
+      - traefik.docker.network=vnet-ingress
       - traefik.http.routers.myservice.rule=Host(`myservice.${DOMAINNAME}`)
 
 networks:
-  ingress:
+  vnet-ingress:
     external: true
   vnet-myservice:
     name: vnet-myservice
     driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.X.Y/29
 ```
 
 ### Service with Database
@@ -120,7 +135,7 @@ Service with dedicated database:
 services:
   myservice:
     networks:
-      - ingress
+      - vnet-ingress
       - vnet-myservice
     environment:
       DB_HOST: myservice-db
@@ -129,13 +144,17 @@ services:
     image: postgres:16
     networks:
       - vnet-myservice  # Only on service network
-    # No ingress network - not web accessible
+    # No vnet-ingress - not web accessible
 
 networks:
-  ingress:
+  vnet-ingress:
     external: true
   vnet-myservice:
     name: vnet-myservice
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.X.Y/29
 ```
 
 ### Docker API Access
@@ -146,13 +165,13 @@ Service needing Docker API:
 services:
   monitoring-tool:
     networks:
-      - ingress
+      - vnet-ingress
       - vnet-socket    # For Docker API access
     environment:
       DOCKER_HOST: tcp://cetusguard:2375
 
 networks:
-  ingress:
+  vnet-ingress:
     external: true
   vnet-socket:
     external: true
@@ -170,17 +189,17 @@ networks:
 ### Network Policies
 
 **Web services**:
-- ✅ Connect to `ingress`
+- ✅ Connect to `vnet-ingress`
 - ✅ Connect to own `vnet-service`
 - ❌ Never directly to other service networks
 
 **Databases**:
 - ✅ Connect to own `vnet-service`
-- ❌ Never to `ingress`
+- ❌ Never to `vnet-ingress`
 - ❌ Never to other service networks
 
 **Monitoring tools**:
-- ✅ Connect to `ingress`
+- ✅ Connect to `vnet-ingress`
 - ✅ Connect to `vnet-socket`
 - ❌ Never directly to service networks
 
@@ -198,27 +217,30 @@ Services communicate through defined networks only:
 
 ### Web Request Flow
 
-1. **External request** → Port 443
-2. **Traefik** (on ingress) → Receives request
+1. **External request** → Port 80 (Traefik)
+2. **Traefik** (on vnet-ingress) → Receives request
 3. **CrowdSec** → Analyzes traffic
 4. **Authelia** → Authenticates user
-5. **Service** (on ingress) → Receives authorized request
+5. **Service** (on vnet-ingress) → Receives authorized request
 6. **Service → Database** (on vnet-service) → Internal communication
 
 ### Service-to-Service
 
 Services that need to communicate must:
 
-1. Share a network OR
-2. Use ingress network (less secure) OR
-3. Create shared network (better)
+1. Share a common network OR
+2. Use vnet-ingress (less secure, only if needed) OR
+3. Create dedicated shared network (preferred)
 
-Example shared network:
+Example shared network for service-to-service:
 ```yaml
 networks:
   vnet-shared:
     name: vnet-shared
     driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.X.Y/29
 ```
 
 ## DNS Resolution
@@ -330,9 +352,9 @@ docker exec myservice ping myservice-db
                   │ :443/:80
                   │
 ┌─────────────────▼───────────────────────────────────────┐
-│ Traefik (ingress network)                               │
-│   - SSL termination                                     │
-│   - Routing                                             │
+│ Traefik (vnet-ingress)                                  │
+│   - HTTP routing (port 80)                              │
+│   - SSL upstream                                        │
 └─────────┬─────────────────────┬─────────────────────────┘
           │                     │
           │                     │
@@ -343,7 +365,7 @@ docker exec myservice ping myservice-db
           │
           │
     ┌─────▼────────────────────────────────┐
-    │ ingress network (192.168.90.0/24)    │
+    │ vnet-ingress (192.168.90.0/24)       │
     │   - All web-accessible services      │
     └──────────────────────────────────────┘
           │         │         │
