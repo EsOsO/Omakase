@@ -13,21 +13,37 @@ The `main` branch is currently configured for a **solo maintainer** workflow wit
 | **Pull Requests Required** | ✅ Enabled | All changes must go through PR |
 | **Approvals Required** | ❌ Disabled | No approval needed (solo maintainer) |
 | **Status Checks** | ⏸️ Configured | CI checks will be required when enabled |
-| **Enforce on Admins** | ✅ Enabled | Even admins must follow PR workflow |
+| **Enforce on Admins** | ⚠️ Disabled | Allows bot to push changelog commits |
+| **Pre-Push Hook** | ✅ Enabled | Local git hook warns before pushing to main |
 | **Force Pushes** | ❌ Blocked | No force pushes allowed |
 | **Branch Deletion** | ❌ Blocked | Cannot delete main branch |
 
 ### What This Means
 
 As the sole maintainer, you:
-- ✅ **MUST** create pull requests for all changes (direct pushes to `main` are blocked)
-- ✅ **MUST** use feature branches for development
+- ✅ **SHOULD** create pull requests for all changes (recommended workflow)
+- ✅ **SHOULD** use feature branches for development
 - ✅ **CAN** approve and merge your own PRs without external approval
-- ✅ **MUST** resolve all PR comments before merging (when enabled)
+- ⚠️  **CAN** technically push directly to main, but **pre-push hook will warn you**
 - ✅ **MUST** wait for CI checks to pass (when configured)
-- ❌ **CANNOT** push directly to main (even as admin)
+- 🤖 **BOT CAN** push changelog commits automatically with PAT token
 - ❌ **CANNOT** force push to main
 - ❌ **CANNOT** delete the main branch
+
+### Pre-Push Hook Protection
+
+A git hook (`.githooks/pre-push`) provides a safety net:
+- 🚨 **Warns** when attempting to push to main
+- 📋 **Shows** the correct PR workflow
+- ✅ **Allows** automated commits with `[skip ci]` tag (for bots)
+- ❓ **Asks confirmation** before allowing manual pushes
+
+Setup (already configured):
+```bash
+git config core.hooksPath .githooks
+```
+
+See [WORKFLOW.md](../WORKFLOW.md) for detailed workflow guide.
 
 ## Workflow for Solo Maintainer
 
